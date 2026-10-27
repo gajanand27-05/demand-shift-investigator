@@ -26,6 +26,7 @@ question ─> Profiler ─> H-MEM recall ─> Planner ─> Analyst ⇄ Zetaris S
   (calendar, weather, zone mix, airports, time of day, data coverage). It uses recalled memory.
 - **Analyst (executor)** writes one aggregate Spark SQL query per hypothesis and runs it **in Zetaris**. On a SQL
   error it gets the error back and repairs the query (≤2 retries); then it summarises the evidence with numbers.
+- **Evidence audit (deterministic)** runs before the critic: every number in a finding must appear in that query's result rows, and month/season generalisations from a few days are flagged. A finding that fails the audit cannot be accepted (the code overrides an "accept" to "revise").
 - **Evidence Critic (evaluator)** checks each finding: does the SQL test the claim, do the numbers match the rows,
   is the comparison like-for-like (same hours covered), is a data gap masquerading as a demand change? It can
   **accept**, **reject** or send a hypothesis **back for revision** with instructions, and can **add a missing
@@ -46,7 +47,7 @@ Guardrails: read-only, allow-listed SQL; row caps; HTTP timeouts on every extern
 | **Zetaris** (data) | `agent/tools_zetaris.py`, `data/setup/` | The single data layer. Three sources are federated in Zetaris and joined in one SQL query: real TLC trips + taxi zones (local Postgres registered with `CREATE DATASOURCE`), and **real NYC daily weather from the Open-Meteo REST API registered as a SQL table** (`CREATE LIGHTNING REST TABLE`), flattened with a schema-store view. Every fact in a report is a reproducible Zetaris query, shown in the report. |
 | **Meterless Engine: H-MEM** (build) | `engines/hmem/hmem.py`, `tests/test_hmem_conformance.py` | Python implementation of the H-MEM spec: canonical records with provenance (source mandatory), tiered store, hybrid retrieval score (spec §6.1, exact weights), domain-grouped reinjection, feedback deltas, append-only trust ledger, conflict detection with the 0.70 auto-resolve gate, dreaming with approval boundary, sleep with backup. **Passes the official Meterless conformance vectors** (vendored unchanged, Apache-2.0). Used in the live loop for recall and write-back. |
 | **Meterless Nightshift** (power) | `agent/llm.py` | The app's **primary and only AI provider** (OpenAI-compatible, `meterless-app` + `meterless-scope: user` headers), runtime token from env. |
-| **NVIDIA Nemotron** | `NEMOTRON_MODEL` in `.env` | Every agent (planner, analyst, critic, reporter) runs on a pinned Nemotron lane in Nightshift, on the team's DGX Spark. |
+| **NVIDIA Nemotron** | `agent/llm.py`, `.env` | Every agent runs on **Nemotron 3.5 Lightning 30B-A3B as a local lane on the team's DGX Spark** (`local-runtime/...`, Nightshift receipt: `provider: local-runtime, kind: local`), with reasoning switched off for short JSON replies (`enable_thinking: false`, which fixed empty replies). The last retry falls back to **Nemotron 3 Ultra 550B** on NVIDIA's cloud, through the same Nightshift endpoint. |
 | **Cursor** | development | The project was developed in Cursor (see the write-up for how). |
 
 ## Setup
@@ -74,6 +75,20 @@ python -m pytest -q                               # H-MEM conformance + offline 
 
 Each run writes `report.md` (answer, causes with evidence ids, recommendation, rejected explanations, caveats,
 hypothesis table, every SQL query with its result), `case.json` (the shared case file) and `trace.jsonl`.
+
+## Results (real runs, all agents on local Nemotron on the DGX Spark)
+
+| # | Question | What the agents found | Loop behaviour | Run |
+|---|---|---|---|---|
+| 01 | Why was Saturday 2024-07-27 so much lower than Wednesday 2024-07-31? | Not a demand drop: Saturday's data starts at 11:57 (13 h vs 24 h). Per hour Saturday was **busier** (4,612 vs 4,111 trips/h); weather and airports refuted. | Evidence audit caught invented per-hour numbers → critic sent H1/H4 back; critic **added H5**; all fixed in round 2 | 18 calls, 8 queries, 163 s |
+| 02 | Thursday 2024-08-01 looks like it collapsed. What happened? | Data ends at 18:35 (15 h), before the evening peak: a coverage artefact. | **Recalled run 01's coverage caveats from H-MEM** before planning; 3 critic rounds, 2 rejections, critic-added H5/H6 | 27 calls, 14 queries, 283 s |
+| 03 | Did the rain on 2024-07-31 change demand vs dry 2024-07-30? | Counter-intuitive: the rainy day had **more** trips and more per hour (4,111 vs 3,949), airport trips up too. | Recalled caveats, chose two full-coverage days on its own | 9 calls, 4 queries, 108 s |
+
+Each folder in `output_examples/` has `report.md` (answer, causes with query ids, rejected explanations, caveats,
+every SQL query with its rows), `case.json` (the shared case file) and `trace.jsonl` (every agent step).
+
+**Replay without any infrastructure:** `SAMPLE_MODE=true python -m agent.main "<question from the table>" --save 01_saturday_vs_wednesday`
+replays the recorded run call-by-call from `data/sample/llm_cache.json` (no model, no Zetaris, no network) in under a second.
 
 ## Data
 
