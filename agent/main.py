@@ -400,6 +400,16 @@ class Investigation:
                 "\n\nNOT accepted:\n" + ("\n".join(fmt(h) for h in rejected) or "(none)") +
                 "\n\nCritic data caveats:\n" + ("\n".join(f"- {c}" for c in caveats) or "(none)") + self.window_note())
         rep = self.ask("reporter", REPORTER_SYS, user)
+        # Arithmetic guard: a percentage within 0.5 points of the profiler's computed one, but not equal, is a
+        # recomputation slip (e.g. 4.2% vs 4.1%); ask for one rewrite with the exact figure.
+        verdict = (self.case.get("window") or {}).get("verdict") or self.case.get("compare") or ""
+        exact = [abs(float(x)) for x in re.findall(r"([+-]?\d+\.\d)%", verdict)]
+        said = [abs(float(x)) for x in re.findall(r"(\d+\.\d)\s*%", rep.get("answer", ""))]
+        slips = sorted({s for s in said for e in exact if 0 < abs(s - e) <= 0.5 and s not in exact})
+        if slips:
+            self.trace("critic", "audit", f"report quotes {slips}% but the profiler computed {exact}%; asking for a rewrite")
+            rep = self.ask("reporter", REPORTER_SYS, user + f"\n\nYour previous draft quoted {slips}% where the profiler "
+                           f"computed exactly {exact}%. Use the profiler's exact percentages.\nPrevious draft: {json.dumps(rep)[:1500]}")
         flags = SCOPE_WORDS.findall(rep.get("answer", "") + " " + rep.get("recommendation", ""))
         if flags:   # same guardrail as the evidence audit, applied to the final answer (one rewrite)
             self.trace("critic", "audit", f"report over-generalises ({sorted(set(f.lower() for f in flags))}); asking for a rewrite")
