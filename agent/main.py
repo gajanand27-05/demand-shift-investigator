@@ -245,8 +245,20 @@ class Investigation:
             last = h["attempts"][-1] if h["attempts"] else {}
             rows = z.preview({"columns": self.case["queries"][last["qid"]]["columns"],
                               "rows": self.case["queries"][last["qid"]]["rows"]}, 15) if last.get("qid") else "(no result)"
+            if last.get("qid"):
+                q = self.case["queries"][last["qid"]]
+                au = audit(last.get("finding") or "", q["columns"], q["rows"])
+            else:
+                au = {"ok": False, "unverified_numbers": [], "scope_flags": ["no result"]}
+            h["audit"] = au
+            if not au["ok"]:
+                self.trace("critic", "audit", f"{h['id']}: numbers not in the result rows {au['unverified_numbers'] or '-'}; "
+                           f"over-general scope {au['scope_flags'] or '-'}")
+            verdict_txt = "passed" if au["ok"] else (f"FAILED - numbers not found in the result rows: {au['unverified_numbers']}; "
+                                                     f"over-general scope words: {au['scope_flags']}")
             items.append(f"### {h['id']}: {h['claim']}\nQuery {last.get('qid', '-')}:\n{last.get('sql', '')}\n"
-                         f"Result rows:\n{rows}\nAnalyst finding: {last.get('finding') or last.get('error')}")
+                         f"Result rows:\n{rows}\nAnalyst finding: {last.get('finding') or last.get('error')}\n"
+                         f"Automatic evidence audit: {verdict_txt}")
         if not items:
             return {"decision": "approve", "reviews": []}
         user = (f"Question: {self.q}\nFocus: {self.case['plan'].get('focus')} | Baseline: {self.case['plan'].get('baseline')}\n\n"
@@ -260,6 +272,15 @@ class Investigation:
                 continue
             h["critique"] = r
             verdict = r.get("verdict", "revise")
+            au = h.get("audit") or {"ok": True}
+            if verdict == "accept" and not au["ok"] and rnd < MAX_ROUNDS:
+                verdict = "revise"   # guardrail: a finding that fails the evidence audit cannot be accepted
+                r["reason"] = (f"evidence audit failed (unverified numbers {au['unverified_numbers']}, scope "
+                               f"{au['scope_flags']}); critic had said: {r.get('reason')}")
+                missing = f" (not found: {', '.join(au['unverified_numbers'])})" if au["unverified_numbers"] else ""
+                r["revision_request"] = ("Restate the finding using only numbers that appear in the result rows" + missing +
+                                         "; describe only the days actually observed, no month/season generalisation. "
+                                         "If a number is needed that the query does not return, change the query to return it.")
             if verdict == "revise" and rnd >= MAX_ROUNDS:
                 verdict = "reject"  # out of rounds: unproven claims do not reach the report
                 r["reason"] = (r.get("reason") or "") + " (no rounds left to fix the test)"
@@ -340,6 +361,36 @@ class Investigation:
                               "rounds": len(self.case["rounds"]), "seconds": round(time.time() - self.trace.t0, 1)}
         self.trace("system", "done", json.dumps(self.case["stats"]))
         return self.case
+
+
+SCOPE_WORDS = re.compile(r"\b(month|monthly|season|seasonal|all (?:saturdays|sundays|weekdays|weekends)|"
+                         r"every (?:saturday|sunday|week)|typical(?:ly)?|in general|across july|july 2024 days)\b", re.I)
+
+
+def audit(finding: str, columns: list, rows: list) -> dict:
+    """Deterministic evidence audit, run before the critic: every number quoted in a finding must match a value in
+    the query result (to rounding), and scope words must not generalise beyond the observed days."""
+    vals = []
+    for r in rows:
+        for v in r:
+            try:
+                vals.append(float(str(v).replace(",", "")))
+            except ValueError:
+                pass
+    text = re.sub(r"\d{4}-\d{2}-\d{2}|\b\d{1,2}:\d{2}\b|\b[HQ]\d+\b|wmo_code \d+|"
+                  r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|"
+                  r"\b(?:19|20)\d{2}\b", " ", finding or "", flags=re.I)
+    unverified = []
+    for m in re.finditer(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(\s*%)?", text):
+        if m.group(2):                       # percentages are derived; the critic judges those
+            continue
+        x = float(m.group(1).replace(",", ""))
+        if x < 25 and x == int(x):           # small counts (hours, days, ranks) are too ambiguous to audit
+            continue
+        if not any(abs(x - v) <= max(0.051, 0.005 * abs(v)) for v in vals):
+            unverified.append(m.group(1))
+    scope = sorted({w.lower() for w in SCOPE_WORDS.findall(finding or "")})
+    return {"unverified_numbers": unverified, "scope_flags": scope, "ok": not unverified and not scope}
 
 
 def _one_line(sql: str) -> str:
