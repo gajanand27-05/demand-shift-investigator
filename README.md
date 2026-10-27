@@ -67,6 +67,7 @@ python data/setup/setup_data.py   # one command: download, load Postgres, regist
 ```bash
 python -m agent.main "Why was taxi demand on Saturday 2024-07-27 so much lower than on Wednesday 2024-07-31?"
 python -m agent.main "Did the rain on 2024-07-31 change where people took taxis?" --save rain_jul31
+python -m agent.main --list-examples              # print input_examples/questions.md
 python -m agent.main --memory                     # what the agent has learned so far
 python -m agent.main --feedback mem-xxxx:wrong    # correct a memory
 SAMPLE_MODE=true python -m agent.main "<a question from output_examples>" --save <name>   # replay, no model/network

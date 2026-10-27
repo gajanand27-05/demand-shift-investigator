@@ -14,6 +14,7 @@ H-MEM (Meterless engine, engines/hmem) is recalled before planning and written a
 so the next investigation starts from what earlier ones learned.
 
 Usage:  python -m agent.main "Why did taxi demand on Saturday 2024-07-27 look so low?" [--save NAME]
+        python -m agent.main --list-examples
         python -m agent.main --feedback mem-xxxx:wrong
         SAMPLE_MODE=true python -m agent.main ...   (replays a recorded run, no model or network)
 """
@@ -208,7 +209,22 @@ class Investigation:
                                     f"WHERE is_valid_trip AND pickup_date IN ({day_list}) AND pickup_hour BETWEEN {lo} AND {hi} "
                                     f"GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
                                     f"like-for-like window {lo:02d}:00-{hi:02d}:59")
-                self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres)}
+                verdict = ""
+                if len(wres["rows"]) == 2:
+                    (d1, _, n1, _), (d2, _, n2, _) = wres["rows"]
+                    full_days = [d for d in days if len(days_info[d]["full"]) == 24]
+                    base, focus = ((d1, int(n1)), (d2, int(n2))) if d1 in full_days else ((d2, int(n2)), (d1, int(n1)))
+                    pct = 100.0 * (focus[1] - base[1]) / base[1]
+                    raw = {d: sum(days_info[d]["hours"].values()) for d in days}
+                    raw_pct = 100.0 * (raw[focus[0]] - raw[base[0]]) / raw[base[0]]
+                    kind = ("so the apparent change is a DATA-COVERAGE ARTEFACT: there was no real demand change"
+                            if abs(pct) < 5 else
+                            "so part of the raw gap is coverage, and a real like-for-like difference remains")
+                    verdict = (f"PROFILER VERDICT: whole-day totals differ by {raw_pct:+.1f}% ({focus[0]} vs {base[0]}), "
+                               f"but within the shared hours they differ by {pct:+.1f}% ({focus[1]} vs {base[1]} "
+                               f"valid trips), {kind}.")
+                    self.trace("profiler", "verdict", verdict)
+                self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres), "verdict": verdict}
                 self.trace("profiler", "window", f"days cover different hours -> fair comparison uses only "
                            f"{lo:02d}:00-{hi:02d}:59: " + "; ".join(f"{r[0]} {r[2]} valid trips" for r in wres["rows"]))
 
@@ -218,7 +234,8 @@ class Investigation:
             return ""
         return (f"\nLIKE-FOR-LIKE WINDOW (computed by the profiler, {w['qid']}): the days in the question cover different "
                 f"hours, so compare them only within pickup_hour BETWEEN {w['lo']} AND {w['hi']}. Do NOT divide totals by "
-                f"hours covered (the missing hours are quiet night/morning hours, so that inflates the partial day).\n{w['table']}\n")
+                f"hours covered (the missing hours are quiet night/morning hours, so that inflates the partial day).\n{w['table']}\n"
+                f"{w.get('verdict', '')}\n")
 
     def recall(self):
         """Two H-MEM retrievals merged: one for the question, one aimed at known data caveats for its dates."""
@@ -529,8 +546,13 @@ def main(argv=None):
     ap.add_argument("--save", help="save under output_examples/<NAME> (default: runs/<timestamp>)")
     ap.add_argument("--feedback", help="memory feedback, e.g. mem-abc123:wrong (helpful|not_helpful|wrong)")
     ap.add_argument("--memory", action="store_true", help="list stored memories")
+    ap.add_argument("--list-examples", action="store_true",
+                    help="print the sample questions in input_examples/questions.md")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
+    if a.list_examples:
+        print((ROOT / "input_examples" / "questions.md").read_text(encoding="utf-8"), end="")
+        return 0
     hmem = HMEM(path=MEMORY_PATH)
     if a.feedback:
         mid, kind = a.feedback.split(":")
