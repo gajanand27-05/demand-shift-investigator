@@ -26,6 +26,7 @@ question ─> Profiler ─> H-MEM recall ─> Planner ─> Analyst ⇄ Zetaris S
   (calendar, weather, zone mix, airports, time of day, data coverage). It uses recalled memory.
 - **Analyst (executor)** writes one aggregate Spark SQL query per hypothesis and runs it **in Zetaris**. On a SQL
   error it gets the error back and repairs the query (≤2 retries); then it summarises the evidence with numbers.
+- **Profiler (deterministic tool step)** measures hour-level coverage per day (an hour counts only with at least half its normal volume, so export cut-offs are caught), computes the **like-for-like hour window** shared by the days in the question, and states a verdict (e.g. "whole-day -59%, same hours +2.1%: coverage artefact") that every agent sees. Coverage facts are mined into H-MEM.
 - **Evidence audit (deterministic)** runs before the critic: every number in a finding must appear in that query's result rows, and month/season generalisations from a few days are flagged. A finding that fails the audit cannot be accepted (the code overrides an "accept" to "revise").
 - **Evidence Critic (evaluator)** checks each finding: does the SQL test the claim, do the numbers match the rows,
   is the comparison like-for-like (same hours covered), is a data gap masquerading as a demand change? It can
@@ -81,9 +82,9 @@ hypothesis table, every SQL query with its result), `case.json` (the shared case
 
 | # | Question | What the agents found | Loop behaviour | Run |
 |---|---|---|---|---|
-| 01 | Why was Saturday 2024-07-27 so much lower than Wednesday 2024-07-31? | Not a demand drop: Saturday's data starts at 11:57 (13 h vs 24 h). Per hour Saturday was **busier** (4,612 vs 4,111 trips/h); weather and airports refuted. | Evidence audit caught invented per-hour numbers → critic sent H1/H4 back; critic **added H5**; all fixed in round 2 | 18 calls, 8 queries, 163 s |
-| 02 | Thursday 2024-08-01 looks like it collapsed. What happened? | Data ends at 18:35 (15 h), before the evening peak: a coverage artefact. | **Recalled run 01's coverage caveats from H-MEM** before planning; 3 critic rounds, 2 rejections, critic-added H5/H6 | 27 calls, 14 queries, 283 s |
-| 03 | Did the rain on 2024-07-31 change demand vs dry 2024-07-30? | Counter-intuitive: the rainy day had **more** trips and more per hour (4,111 vs 3,949), airport trips up too. | Recalled caveats, chose two full-coverage days on its own | 9 calls, 4 queries, 108 s |
+| 01 | Why was Saturday 2024-07-27 so much lower than Wednesday 2024-07-31? | Raw gap -39%, but Saturday's data only covers 12:00-23:59. In the **same hours** Saturday was still **18% lower** (59,736 vs 70,674 valid trips): a real weekday-vs-weekend effect on top of a coverage gap. Rain and airports refuted. | Profiler computes the like-for-like window; critic rejects a misread weather finding, adds H4, rejects it when its SQL fails twice | 17 calls, 11 queries, 151 s |
+| 02 | Thursday 2024-08-01 looks like it collapsed. What happened? | **No collapse**: the export stops at 14:00. Whole-day -59%, but 00:00-13:59 like-for-like **+2.1%** (39,778 vs 38,972). | **Recalls run 01's coverage caveat from H-MEM** before planning; 3 critic rounds; audit + critic reject unverifiable claims | 19 calls, 12 queries, 157 s |
+| 03 | Did the rain on 2024-07-31 change demand vs dry 2024-07-30? | Counter-intuitive: the rainy day had **4.2% more** trips, airport trips up too; no broad geographic shift. | Audit catches six invented zone counts; critic sends them back twice, then rejects; adds a day-of-week confounder hypothesis | 19 calls, 8 queries, 199 s |
 
 Each folder in `output_examples/` has `report.md` (answer, causes with query ids, rejected explanations, caveats,
 every SQL query with its rows), `case.json` (the shared case file) and `trace.jsonl` (every agent step).
