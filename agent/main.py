@@ -566,6 +566,11 @@ def save(case: dict, trace: Trace, out_dir: Path):
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):   # Windows consoles default to cp1252; never crash on a dash or arrow
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description="Why did NYC taxi demand change? (multi-agent, evidence from Zetaris)")
     ap.add_argument("question", nargs="?", help="the question to investigate")
     ap.add_argument("--save", help="save under output_examples/<NAME> (default: runs/<timestamp>)")
