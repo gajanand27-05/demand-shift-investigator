@@ -426,16 +426,18 @@ class Investigation:
             rep = self.ask("reporter", REPORTER_SYS, user + f"\n\nYour previous draft over-generalised with {sorted(set(flags))}. "
                            f"Rewrite it describing only the observed days.\nPrevious draft: {json.dumps(rep)[:1500]}")
         # Final evaluator pass: the critic checks the answer against its own numbers (direction words, contradictions).
-        review = self.ask("critic", FINAL_REVIEW_SYS, f"Question: {self.q}\n\nDraft answer:\n{rep.get('answer', '')}\n\n"
-                          f"Recommendation:\n{rep.get('recommendation', '')}")
-        if review.get("consistent") is False and review.get("fixed_answer"):
-            self.trace("critic", "revise", f"final answer contradicted its own numbers: {review.get('problems')}; corrected")
-            rep["answer_draft"] = rep.get("answer")
-            rep["answer"] = review["fixed_answer"]
-            if review.get("fixed_recommendation"):
-                rep["recommendation"] = review["fixed_recommendation"]
-        else:
-            self.trace("critic", "accept", "final answer is consistent with its numbers")
+        for attempt in range(2):   # the corrected answer is checked again, once
+            review = self.ask("critic", FINAL_REVIEW_SYS, f"Question: {self.q}\n\nDraft answer:\n{rep.get('answer', '')}\n\n"
+                              f"Recommendation:\n{rep.get('recommendation', '')}")
+            if review.get("consistent") is False and review.get("fixed_answer"):
+                self.trace("critic", "revise", f"final answer contradicted its own numbers: {review.get('problems')}; corrected")
+                rep.setdefault("answer_draft", rep.get("answer"))
+                rep["answer"] = review["fixed_answer"]
+                if review.get("fixed_recommendation"):
+                    rep["recommendation"] = review["fixed_recommendation"]
+            else:
+                self.trace("critic", "accept", "final answer is consistent with its numbers")
+                break
         self.case["report"] = rep
         self.trace("reporter", "answer", rep.get("answer", ""))
 

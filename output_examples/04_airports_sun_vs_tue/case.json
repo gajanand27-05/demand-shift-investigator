@@ -60,7 +60,7 @@
    "critique": {
     "id": "H1",
     "verdict": "accept",
-    "reason": "The finding correctly restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows.",
+    "reason": "The finding accurately restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows.",
     "revision_request": null
    },
    "audit": {
@@ -113,7 +113,7 @@
     {
      "qid": "Q5",
      "sql": "SELECT \n    t.pickup_date,\n    t.pickup_zone,\n    t.dropoff_zone,\n    COUNT(*) AS trips\nFROM investigator.trips t\nWHERE t.pickup_date IN ('2024-07-28','2024-07-30')\n  AND t.is_valid_trip\n  AND (t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')\n       OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport'))\nGROUP BY t.pickup_date, t.pickup_zone, t.dropoff_zone\nORDER BY t.pickup_date, trips DESC\nLIMIT 200",
-     "finding": "On Sunday 2024-07-28, the top zone pair was JFK Airport to None with 322 trips, followed by JFK Airport to Times Sq/Theatre District with 270 trips. On Tuesday 2024-07-30, the top zone pair was JFK Airport to None with 219 trips, followed by JFK Airport to Times Sq/Theatre District with 201 trips. Airport zone trips were present on both days, with JFK Airport appearing as the most frequent pickup or dropoff zone on each day.",
+     "finding": "On Sunday 2024-07-28, the top zone pair was JFK Airport to None with 322 trips, followed by JFK Airport to Times Sq/Theatre District with 270 trips. On Tuesday 2024-07-30, the top zone pair was JFK Airport to None with 219 trips, followed by JFK Airport to Times Sq/Theatre District with 201 trips. Airport zone trips (where either pickup or dropoff is JFK, LaGuardia, or Newark) were present on both days, with JFK Airport appearing as the most frequent pickup or dropoff zone on each day.",
      "key_numbers": {
       "trips_2024-07-28_JFK_None": 322,
       "trips_2024-07-28_JFK_Times_Sq": 270,
@@ -125,7 +125,7 @@
     {
      "qid": "Q6",
      "sql": "SELECT \n    t.pickup_date,\n    t.pickup_zone,\n    t.dropoff_zone,\n    COUNT(*) AS trips\nFROM investigator.trips t\nWHERE t.pickup_date IN ('2024-07-28','2024-07-30')\n  AND t.is_valid_trip\n  AND (t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')\n       OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport'))\nGROUP BY t.pickup_date, t.pickup_zone, t.dropoff_zone\nORDER BY t.pickup_date, trips DESC\nLIMIT 200",
-     "finding": "On Sunday 2024-07-28, the top zone pair was JFK Airport to None with 322 trips, followed by JFK Airport to Times Sq/Theatre District with 270 trips. On Tuesday 2024-07-30, the query result rows were not included in the provided output; only July 28 data is shown. Therefore, the top zone pairs for July 30 cannot be restated from this result set.",
+     "finding": "On Sunday 2024-07-28, the top zone pair was JFK Airport to None with 322 trips, followed by JFK Airport to Times Sq/Theatre District with 270 trips. The query result for Tuesday 2024-07-30 is not included in the provided output; only July 28 data is shown. Therefore, the top zone pairs for July 30 cannot be restated from this result set.",
      "key_numbers": {
       "trips_2024-07-28_JFK_None": 322,
       "trips_2024-07-28_JFK_Times_Sq": 270
@@ -1742,8 +1742,8 @@
     {
      "id": "H3",
      "verdict": "revise",
-     "reason": "The finding states 'On Tuesday 2024-07-30, the top zone pair was JFK Airport to None with 219 trips, followed by JFK Airport to Times Sq/Theatre District with 201 trips.' These numbers (219 and 201) do not appear in the Q5 result rows. The top entries shown for July 30 are not included in the provided result set, which only displays rows for July 28. The finding invents values not present in the data. All other numbers in the finding (e.g., 322, 270 for July 28) are correctly restated.",
-     "revision_request": "Restate the July 30 top zone pairs using only the numbers that appear in the Q5 result rows, or provide the correct top-5 pairs for July 30 from the query results. Do not invent trip counts (219, 201) that are absent from the result set."
+     "reason": "The finding invents trip counts (219 and 201) for Tuesday 2024-07-30 that do not appear in the Q5 result rows. The provided result set only contains data for July 28, and the top zone pairs for July 30 are not listed. The analyst must either run the query filtered to July 30 and report the actual top pairs from those result rows, or explicitly state that the Tuesday top zone pairs are unknown from this result set and refrain from inventing values.",
+     "revision_request": "Run Query Q5 filtered to t.pickup_date = '2024-07-30' (and optionally compare with July 28) and report the actual top zone pairs for Tuesday from the result rows. Do not claim top zone pairs for Tuesday without data support."
     }
    ],
    "missing_hypothesis": null,
@@ -1755,7 +1755,7 @@
     {
      "id": "H1",
      "verdict": "accept",
-     "reason": "The finding correctly restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows.",
+     "reason": "The finding accurately restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows.",
      "revision_request": null
     },
     {
@@ -1767,8 +1767,8 @@
     {
      "id": "H3",
      "verdict": "revise",
-     "reason": "The finding states top zone pairs for Tuesday 2024-07-30 but provides no result rows for that day. The provided Q6 output only contains rows for July 28. The claim about Tuesday's top zone pairs is unsupported by the data. The analyst should either (a) run the query for July 30 and report those top pairs, or (b) explicitly state that the Tuesday top zone pairs are unknown from this result set and refrain from inventing values.",
-     "revision_request": "Run Query Q6 filtered to t.pickup_date = '2024-07-30' (and optionally t.pickup_date = '2024-07-28') and report the actual top zone pairs for Tuesday from the result rows. Do not claim top zone pairs for Tuesday without data support."
+     "reason": "The finding states top zone pairs for Sunday 2024-07-28 but then claims the Tuesday 2024-07-30 top zone pairs are missing from the output. However, the result rows for Tuesday 2024-07-30 are present in the Q6 output (rows begin with pickup_date 2024-07-30). The analyst's claim that Tuesday's top zone pairs are 'not included' is incorrect\u2014they are visible in the result set. The finding should accurately restate the top zone pairs for both days from the available data instead of asserting they are missing.",
+     "revision_request": "Run Query Q6 filtered to t.pickup_date = '2024-07-30' and report the actual top zone pairs for Tuesday from the result rows. Do not claim top zone pairs are missing when they appear in the output."
     }
    ],
    "missing_hypothesis": null,
@@ -1793,7 +1793,7 @@
   }
  ],
  "report": {
-  "answer": "On Sunday 2024-07-28 there were 75,768 total trips with a 16% airport\u2011trip share (11,907 airport trips), versus Tuesday 2024-07-30 with 94,765 total trips and a 10% airport\u2011trip share (9,184 airport trips). The profiler\u2011verified baseline shows a -20.0% raw gap in total trips, but the airport\u2011trip share is 6 percentage points higher on Sunday, indicating that the drop in absolute airport pickups is driven primarily by lower overall demand, not by a shift away from airport zones. Weather was identical on both days (0.0 mm precip, wmo_code 3), so the difference is not weather\u2011related.",
+  "answer": "On Sunday 2024-07-28 there were 75,768 total trips with a 16% airport\u2011trip share (11,907 airport trips), versus Tuesday 2024-07-30 with 94,765 total trips and a 10% airport\u2011trip share (9,184 airport trips). The profiler\u2011verified baseline shows a -20.0% raw gap in total trips, but the airport\u2011trip share is 6 percentage points higher on Sunday, indicating that the rise in absolute airport pickups is driven by a relative shift toward airport\u2011zone trips on Sunday, not by higher overall demand. Weather was identical on both days (0.0 mm precip, wmo_code 3), so the difference is not weather\u2011related.",
   "causes": [
    {
     "cause": "Lower total trip volume on Sunday reduced absolute airport pickup counts despite a higher per\u2011trip airport share.",
@@ -1828,7 +1828,8 @@
    "Analysis covers only two days in July 2024 and does not control for day\u2011of\u2011week patterns beyond these specific dates.",
    "All findings rely on is_valid_trip filtering; results may differ if all trips (including invalid) are considered.",
    "No multi\u2011day regression or trend analysis was performed to isolate causal mechanisms from concurrent factors."
-  ]
+  ],
+  "answer_draft": "On Sunday 2024-07-28 there were 75,768 total trips with a 16% airport\u2011trip share (11,907 airport trips), versus Tuesday 2024-07-30 with 94,765 total trips and a 10% airport\u2011trip share (9,184 airport trips). The profiler\u2011verified baseline shows a -20.0% raw gap in total trips, but the airport\u2011trip share is 6 percentage points higher on Sunday, indicating that the drop in absolute airport pickups is driven primarily by lower overall demand, not by a shift away from airport zones. Weather was identical on both days (0.0 mm precip, wmo_code 3), so the difference is not weather\u2011related."
  },
  "coverage_caveats": [
   "2024-07-27 (Saturday) is a partial day: data only covers 12:00-23:59 (12 of 24 hours); outside that the export is cut off, so its whole-day total undercounts demand. Compare it only within the same hours.",
@@ -1836,14 +1837,14 @@
  ],
  "compare": "PROFILER VERDICT (Q2): both days are fully covered, so whole-day totals are comparable: 2024-07-28 75768 vs 2024-07-30 94765 valid trips = -20.0%. Use this exact percentage; do not recompute it.",
  "memory_written": [
-  "mem-c84d75e62669",
-  "mem-174c2cea7196",
-  "mem-538593892b6b"
+  "mem-2a198d3ee605",
+  "mem-9831a3c8e9a0",
+  "mem-e5a8637e98c9"
  ],
  "stats": {
-  "llm_calls": 15,
+  "llm_calls": 17,
   "sql_queries": 7,
   "rounds": 3,
-  "seconds": 130.6
+  "seconds": 131.8
  }
 }

@@ -32,6 +32,7 @@ question ─> Profiler ─> H-MEM recall ─> Planner ─> Analyst ⇄ Zetaris S
   is the comparison like-for-like (same hours covered), is a data gap masquerading as a demand change? It can
   **accept**, **reject** or send a hypothesis **back for revision** with instructions, and can **add a missing
   hypothesis** (branching). Unproven claims never reach the report.
+- **Final critic review**: the critic re-reads the finished answer and fixes any direction word that contradicts its own numbers (a "drop" in something that rose), then checks its own correction once more.
 - **Reporter** writes the answer from accepted evidence only, citing query ids, with confidence, rejected
   explanations, caveats, limitations and a recommendation.
 - **H-MEM** (Meterless engine) is recalled before planning and written after the critic rules: data caveats go to
@@ -85,7 +86,7 @@ hypothesis table, every SQL query with its result), `case.json` (the shared case
 | 01 | Why was Saturday 2024-07-27 so much lower than Wednesday 2024-07-31? | Raw gap -39.2%, but Saturday's data only covers 12:00-23:59. In the **same hours** Saturday was still **15.5% lower** (59,736 vs 70,674 valid trips): a real weekday-vs-weekend effect on top of a coverage gap. Rain and airports refuted. | Profiler computes the like-for-like window; critic rejects a misread weather finding, adds H4, rejects it when its SQL fails twice | 19 calls, 12 queries, 166 s |
 | 02 | Thursday 2024-08-01 looks like it collapsed. What happened? | **No collapse**: the export stops at 14:00. Whole-day -59%, but 00:00-13:59 like-for-like **+2.1%** (39,778 vs 38,972). | **Recalls run 01's coverage caveat from H-MEM** before planning; 3 critic rounds; audit + critic reject unverifiable claims | 19 calls, 12 queries, 157 s |
 | 03 | Did the rain on 2024-07-31 change demand vs dry 2024-07-30? | Counter-intuitive: the rainy day had **4.1% more** trips (98,655 vs 94,765), airport trips up too. A zone-level shift was not established (those queries failed and were rejected). | Critic catches invented zone counts, sends them back twice, then rejects the failed query; adds a day-of-week confounder hypothesis | 23 calls, 14 queries, 240 s |
-| 04 | Why did airport pickups (JFK, LaGuardia) differ between Sunday 2024-07-28 and Tuesday 2024-07-30? | Sunday had 20.0% fewer trips overall (75,768 vs 94,765) but **more airport trips** (11,907 vs 9,184; a 16% vs 10% share). Weather was identical (dry both days), so it was refuted. | Profiler verdict computed in code; all three findings accepted in round 1 | 9 calls, 5 queries, 84 s |
+| 04 | Why did airport pickups (JFK, LaGuardia) differ between Sunday 2024-07-28 and Tuesday 2024-07-30? | Sunday had 20.0% fewer trips overall (75,768 vs 94,765) but **more airport trips** (11,907 vs 9,184; a 16% vs 10% share). Weather was identical (dry both days), so it was refuted. | Profiler verdict computed in code; **final critic review caught the answer calling the airport rise a "drop", and corrected it (re-checked twice)** | 17 calls, 7 queries, 132 s |
 
 Each folder in `output_examples/` has `report.md` (answer, causes with query ids, rejected explanations, caveats,
 every SQL query with its rows), `case.json` (the shared case file) and `trace.jsonl` (every agent step).

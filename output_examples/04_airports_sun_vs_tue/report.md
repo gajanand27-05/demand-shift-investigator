@@ -1,6 +1,6 @@
 # Why did airport pickups (JFK, LaGuardia) differ between Sunday 2024-07-28 and Tuesday 2024-07-30?
 
-**Answer.** On Sunday 2024-07-28 there were 75,768 total trips with a 16% airport‑trip share (11,907 airport trips), versus Tuesday 2024-07-30 with 94,765 total trips and a 10% airport‑trip share (9,184 airport trips). The profiler‑verified baseline shows a -20.0% raw gap in total trips, but the airport‑trip share is 6 percentage points higher on Sunday, indicating that the drop in absolute airport pickups is driven primarily by lower overall demand, not by a shift away from airport zones. Weather was identical on both days (0.0 mm precip, wmo_code 3), so the difference is not weather‑related.
+**Answer.** On Sunday 2024-07-28 there were 75,768 total trips with a 16% airport‑trip share (11,907 airport trips), versus Tuesday 2024-07-30 with 94,765 total trips and a 10% airport‑trip share (9,184 airport trips). The profiler‑verified baseline shows a -20.0% raw gap in total trips, but the airport‑trip share is 6 percentage points higher on Sunday, indicating that the rise in absolute airport pickups is driven by a relative shift toward airport‑zone trips on Sunday, not by higher overall demand. Weather was identical on both days (0.0 mm precip, wmo_code 3), so the difference is not weather‑related.
 
 **Confidence:** 0.91
 
@@ -27,7 +27,7 @@ Maintain standard dispatch levels for Sunday operations; the data shows no weath
 ## Hypotheses and critic rulings
 | id | origin | claim | status | evidence | critic |
 |---|---|---|---|---|---|
-| H1 | planner | Sunday has intrinsically lower airport‑trip share than Tuesday due to reduced business travel and fewer commuter flights, independent of weather. | accepted | Q3 | The finding correctly restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows. |
+| H1 | planner | Sunday has intrinsically lower airport‑trip share than Tuesday due to reduced business travel and fewer commuter flights, independent of weather. | accepted | Q3 | The finding accurately restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows. |
 | H2 | planner | Weather on Sunday 2024-07-28 (higher precip_mm or non‑zero rain_mm) suppressed airport‑trip demand relative to the dry Tuesday 2024-07-30. | accepted | Q4 | The analyst's finding accurately reflects the Q4 result rows: both days had identical dry conditions (0.0 mm precip, 0.0 mm rain, wmo_code 3). The finding correctly states that Sunday had a higher airport trip share (16% vs 10%) and higher total trips, indicating weather was not a suppressing factor. All numbers in the finding appear in the result rows. |
 | H3 | planner | The zone‑level distribution of trips changed between Sunday and Tuesday, with fewer trips to/from airport zones on Sunday even after normalizing for total volume. | rejected | Q7 | The analyst's finding states specific numbers for Tuesday 2024-07-30 (219 and 201 trips) that do not appear in the Q7 result rows. The result set only contains data for Sunday 2024-07-28; no rows for Tuesday 2024-07-30 are present. Therefore, the claim about Tuesday's top zone pairs is unsupported by the provided data. (no rounds left to fix the test) |
 
@@ -197,4 +197,4 @@ pickup_date | pickup_zone | dropoff_zone | trips
 2024-07-28 | LaGuardia Airport | Yorkville West | 90  
 ... (48 more rows)
 
-_Stats: {'llm_calls': 15, 'sql_queries': 7, 'rounds': 3, 'seconds': 130.6}_
+_Stats: {'llm_calls': 17, 'sql_queries': 7, 'rounds': 3, 'seconds': 131.8}_
