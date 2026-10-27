@@ -41,7 +41,7 @@ class SqlRejected(ValueError):
 
 def normalise(sql: str) -> str:
     """Rewrite ANSI/T-SQL row limits Zetaris's Spark dialect rejects (FETCH FIRST n ROWS ONLY, TOP n) into LIMIT n."""
-    s = re.sub(r"\s+FETCH\s+(?:FIRST|NEXT)\s+(\d+)\s+ROWS?\s+ONLY\s*$", r" LIMIT ", sql.strip().rstrip(";"), flags=re.I)
+    s = re.sub(r"\s+FETCH\s+(?:FIRST|NEXT)\s+(\d+)\s+ROWS?\s+ONLY\s*$", r" LIMIT \1", sql.strip().rstrip(";"), flags=re.I)
     m = re.match(r"(?is)^\s*SELECT\s+TOP\s+(\d+)\s+(.*)$", s)
     if m and not re.search(r"LIMIT\s+\d+\s*$", s, re.I):
         s = f"SELECT {m.group(2)} LIMIT {m.group(1)}"
