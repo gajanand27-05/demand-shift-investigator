@@ -99,3 +99,9 @@ def test_guard_rejects_unsafe_sql():
         with pytest.raises(z.SqlRejected):
             z.guard(bad)
     assert z.guard("SELECT pickup_date FROM investigator.trips GROUP BY 1;").endswith("GROUP BY 1")
+
+
+def test_normalise_row_limits():
+    """Zetaris's Spark dialect rejects ANSI FETCH FIRST / T-SQL TOP; the tool rewrites them to LIMIT."""
+    assert z.normalise("SELECT a FROM investigator.trips GROUP BY a\nFETCH FIRST 200 ROWS ONLY;").endswith("GROUP BY a LIMIT 200")
+    assert z.normalise("SELECT TOP 5 a FROM investigator.trips").endswith("investigator.trips LIMIT 5")

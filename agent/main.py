@@ -186,7 +186,7 @@ class Investigation:
             info["full"] = full
             rows.append([d, info["dow"], sum(info["hours"].values()), f"{full[0]:02d}:00" if full else "-",
                          f"{full[-1]:02d}:59" if full else "-", len(full)])
-        table = z.preview({"columns": ["pickup_date", "pickup_dow", "trips", "first_full_hour", "last_full_hour",
+        table = z.preview({"columns": ["pickup_date", "pickup_dow", "all_trips (valid + invalid)", "first_full_hour", "last_full_hour",
                                        "hours_covered"], "rows": rows})
         self.case["profile"] = {"qid": qid, "table": table}
         partial = [r for r in rows if r[5] < 24]

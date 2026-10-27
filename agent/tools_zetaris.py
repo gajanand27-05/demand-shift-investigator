@@ -31,15 +31,25 @@ CATALOG = """Zetaris tables you may query (Spark SQL dialect; dates as 'YYYY-MM-
    Join on investigator.trips.pickup_date = investigator.nyc_daily_weather.day
 3. nyc_taxi_pg.zones - location_id, zone, borough  (260 NYC taxi zones)
 
-Rules: one SELECT per call; always aggregate (GROUP BY) rather than returning raw trips; results are capped at 200 rows."""
+Rules: one SELECT per call; always aggregate (GROUP BY) rather than returning raw trips; results are capped at 200 rows.
+Use LIMIT n (Spark SQL), never FETCH FIRST n ROWS ONLY or TOP n."""
 
 
 class SqlRejected(ValueError):
     pass
 
 
+def normalise(sql: str) -> str:
+    """Rewrite ANSI/T-SQL row limits Zetaris's Spark dialect rejects (FETCH FIRST n ROWS ONLY, TOP n) into LIMIT n."""
+    s = re.sub(r"\s+FETCH\s+(?:FIRST|NEXT)\s+(\d+)\s+ROWS?\s+ONLY\s*$", r" LIMIT ", sql.strip().rstrip(";"), flags=re.I)
+    m = re.match(r"(?is)^\s*SELECT\s+TOP\s+(\d+)\s+(.*)$", s)
+    if m and not re.search(r"LIMIT\s+\d+\s*$", s, re.I):
+        s = f"SELECT {m.group(2)} LIMIT {m.group(1)}"
+    return s
+
+
 def guard(sql: str) -> str:
-    s = sql.strip().rstrip(";").strip()
+    s = normalise(sql).strip()
     low = s.lower()
     if not re.match(r"^(select|with)\b", low):
         raise SqlRejected("only SELECT/WITH queries are allowed")
