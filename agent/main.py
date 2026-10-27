@@ -334,9 +334,11 @@ class Investigation:
                     content=f"Refuted for '{self.q}': {h['claim']} - critic: {(h['critique'] or {}).get('reason')}",
                     source="critic", layer="working", type="factual", confidence=0.7, tags=["refuted"],
                     missionId=mission, actor="critic"))
-        for conflict in self.hmem.conflicts.scan():
-            outcome = self.hmem.conflicts.autoResolve(conflict)
-            self.trace("memory", "conflict", f"{conflict['reason']} -> {outcome}")
+        outcomes = [self.hmem.conflicts.autoResolve(c) for c in self.hmem.conflicts.scan()]
+        if outcomes:
+            self.trace("memory", "conflict", f"{len(outcomes)} possible contradictions between memories: "
+                       f"{outcomes.count('resolved')} auto-resolved (loser marked supersededBy), "
+                       f"{outcomes.count('queued')} queued for human review (decision confidence < 0.70)")
         self.hmem.save()
         self.trace("memory", "write", f"stored {len(written)} memories (caveats, findings, refuted hypotheses) "
                    f"-> {MEMORY_PATH.relative_to(ROOT) if MEMORY_PATH.is_relative_to(ROOT) else MEMORY_PATH}")
