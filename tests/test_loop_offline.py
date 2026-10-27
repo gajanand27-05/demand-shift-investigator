@@ -107,3 +107,10 @@ def test_normalise_row_limits():
     """Zetaris's Spark dialect rejects ANSI FETCH FIRST / T-SQL TOP; the tool rewrites them to LIMIT."""
     assert z.normalise("SELECT a FROM investigator.trips GROUP BY a\nFETCH FIRST 200 ROWS ONLY;").endswith("GROUP BY a LIMIT 200")
     assert z.normalise("SELECT TOP 5 a FROM investigator.trips").endswith("investigator.trips LIMIT 5")
+
+
+def test_normalise_postgres_casts():
+    """Postgres casts (x::FLOAT) fail in Zetaris's Spark dialect; the tool rewrites them to CAST(... AS DOUBLE)."""
+    out = z.normalise("SELECT COUNT(*)::FLOAT / COUNT(DISTINCT t.pickup_hour) AS r, t.fare_usd::int FROM investigator.trips t")
+    assert "CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT t.pickup_hour)" in out and "CAST(t.fare_usd AS BIGINT)" in out
+    assert "::" not in out

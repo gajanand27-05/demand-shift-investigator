@@ -32,7 +32,7 @@ CATALOG = """Zetaris tables you may query (Spark SQL dialect; dates as 'YYYY-MM-
 3. nyc_taxi_pg.zones - location_id, zone, borough  (260 NYC taxi zones)
 
 Rules: one SELECT per call; always aggregate (GROUP BY) rather than returning raw trips; results are capped at 200 rows.
-Use LIMIT n (Spark SQL), never FETCH FIRST n ROWS ONLY or TOP n."""
+Use LIMIT n (Spark SQL), never FETCH FIRST n ROWS ONLY or TOP n; use CAST(x AS DOUBLE), never x::FLOAT."""
 
 
 class SqlRejected(ValueError):
@@ -45,6 +45,12 @@ def normalise(sql: str) -> str:
     m = re.match(r"(?is)^\s*SELECT\s+TOP\s+(\d+)\s+(.*)$", s)
     if m and not re.search(r"LIMIT\s+\d+\s*$", s, re.I):
         s = f"SELECT {m.group(2)} LIMIT {m.group(1)}"
+    # Postgres-style casts (x::FLOAT) -> CAST(x AS DOUBLE); the operand is a call like COUNT(*) or a (qualified) name/number
+    types = {"float": "DOUBLE", "float8": "DOUBLE", "double": "DOUBLE", "real": "DOUBLE", "numeric": "DOUBLE",
+             "decimal": "DOUBLE", "int": "BIGINT", "integer": "BIGINT", "bigint": "BIGINT", "text": "STRING",
+             "varchar": "STRING", "date": "DATE", "timestamp": "TIMESTAMP"}
+    s = re.sub(r"((?:\w+\s*\((?:[^()]|\([^()]*\))*\))|[\w.]+)\s*::\s*(\w+)",
+               lambda m: f"CAST({m.group(1)} AS {types.get(m.group(2).lower(), m.group(2).upper())})", s)
     return s
 
 

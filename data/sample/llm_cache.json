@@ -32445,5 +32445,23 @@
   "model": "local-runtime/nemotron-3.5-lightning-30b-a3b",
   "latency_s": 3.83,
   "attempt": 0
+ },
+ "8876607782ff5f0d28529e91": {
+  "columns": [
+   "pickup_date",
+   "trips_per_hour"
+  ],
+  "rows": [
+   [
+    "2024-08-01",
+    "2841.285714285714"
+   ],
+   [
+    "2024-07-31",
+    "2783.714285714286"
+   ]
+  ],
+  "sql": "SELECT t.pickup_date, CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT t.pickup_hour) AS trips_per_hour FROM investigator.trips t WHERE t.pickup_date IN ('2024-07-31','2024-08-01') AND t.pickup_hour BETWEEN 0 AND 13 AND t.is_valid_trip GROUP BY t.pickup_date",
+  "elapsed_s": 3.35
  }
 }
