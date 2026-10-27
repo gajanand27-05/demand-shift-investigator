@@ -1,14 +1,14 @@
 # Why was taxi demand on Saturday 2024-07-27 so much lower than on Wednesday 2024-07-31?
 
-**Answer.** Within the 12–23 hour window, Wednesday 2024-07-31 had 70,674 trips versus Saturday 2024-07-27's 59,736, a 15.5% like-for-like gap after accounting for the 12 shared hours. H1 confirms that even in this shared window, Wednesday consistently outperforms Saturday, indicating intrinsic weekday demand patterns (commuter/business travel) outweigh weekend leisure patterns. H3 further shows that airport trips were proportionally similar (~10%) but absolutely lower on Saturday (6,082 vs 6,900), contributing to the total shortfall but not driving it disproportionately. The raw whole-day gap of -39.2% is partly a data-coverage artefact (missing early morning/late night hours), but a real 15.5% difference persists when comparing the same 12-hour window.
+**Answer.** Within the 12–23 hour window, Wednesday 2024-07-31 had 70,674 trips versus Saturday 2024-07-27's 59,736, a 15.5% like-for-like gap after accounting for the 12 shared hours. H1 confirms that even in this shared window, Wednesday consistently outperforms Saturday, indicating intrinsic weekday demand patterns (commuter/business travel) outweigh weekend leisure patterns. H3 further shows that airport trips were proportionally similar (~10%) but absolutely lower on Saturday (6,082 vs 6,900), contributing to the total shortfall. The raw whole-day gap of -39.2% is partly a data-coverage artefact (missing early morning/late night hours), but a real 15.5% difference persists when comparing the same 12-hour window.
 
 **Confidence:** 0.88
 
 ## Causes (critic-accepted evidence only)
-- **Intrinsic weekday demand pattern: Wednesday attracts more commuter and business travel than Saturday, even within the 12–23 shared window.** - Primary (evidence: H1, H3; confidence 0.9)
+- **Intrinsic weekday demand pattern: Wednesday attracts more commuter and business travel than Saturday, even within the 12–23 window.** - Primary (evidence: H1, H3; confidence 0.9)
 
 ## Recommendation
-Maintain standard dispatch levels for Saturday evenings within the 12–23 window; the 15.5% gap is driven by weekday vs. weekend travel patterns, not weather or airport volume fluctuations.
+Adjust Saturday evening dispatch levels downward by approximately 15.5% within the 12–23 window to align with observed demand; the gap is driven by weekday vs. weekend travel patterns, not weather or airport volume fluctuations.
 
 ## Rejected explanations
 - Weather suppressed Saturday demand (Saturday was clear; Wednesday was rainy, yet Wednesday had more trips).
@@ -130,4 +130,4 @@ day | precip_mm | wmo_code | trips_in_window
 2024-07-27 | 0.0 | 3 | 59736  
 2024-07-31 | 9.9 | 63 | 70674
 
-_Stats: {'llm_calls': 19, 'sql_queries': 12, 'rounds': 3, 'seconds': 166.5}_
+_Stats: {'llm_calls': 21, 'sql_queries': 12, 'rounds': 3, 'seconds': 175.5}_
