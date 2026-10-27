@@ -170,8 +170,13 @@ class Investigation:
                             "FROM investigator.trips GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
                             "data coverage per day")
         self.case["profile"] = {"qid": qid, "table": z.preview(res)}
-        partial = [r[0] for r in res["rows"] if int(r[5]) < 24]
-        self.trace("profiler", "coverage", f"{len(res['rows'])} days; days with <24 hours of data: {partial or 'none'}")
+        partial = [r for r in res["rows"] if int(r[5]) < 24]
+        self.trace("profiler", "coverage", f"{len(res['rows'])} days; days with <24 hours of data: {[r[0] for r in partial] or 'none'}")
+        # Memory mining from a tool event (H-MEM spec 4.1): coverage facts are written to long-term memory after the run.
+        self.case["coverage_caveats"] = [
+            f"{r[0]} ({r[1]}) is a partial day: trips only from {str(r[3])[11:16]} to {str(r[4])[11:16]} "
+            f"({r[5]} of 24 hours), so its whole-day total undercounts demand; compare it only within the same hours."
+            for r in partial]
         # Like-for-like window: when the days in the question cover different hours, compare only the shared hours.
         days = sorted(set(re.findall(r"\d{4}-\d{2}-\d{2}", self.q)))
         cov = {r[0]: r for r in res["rows"]}
@@ -355,24 +360,41 @@ class Investigation:
         self.case["report"] = rep
         self.trace("reporter", "answer", rep.get("answer", ""))
 
+    def _remember_once(self, content: str, **kw):
+        """Add a memory unless a near-identical one exists; then reinforce that one instead (no duplicates)."""
+        from engines.hmem.hmem import cosine, embed
+        e = embed(content)
+        for m in self.hmem.store.all():
+            if not m.get("supersededBy") and cosine(e, m["embedding"]) >= 0.92:
+                m["accessCount"] += 1
+                m["lastAccessed"] = self.hmem.clock()
+                self.hmem.ledger.log(m["id"], "update", kw.get("actor", "system"), details_reinforced=True)
+                return None
+        return self.hmem.add(content=content, **kw)
+
     def remember(self):
         """H-MEM write-back: caveats and refuted explanations are what make the next run better."""
         mission = re.sub(r"\W+", "-", self.q.lower())[:60]
         written = []
-        for r in self.case["rounds"]:
-            for cav in r.get("data_caveats") or []:
-                written.append(self.hmem.add(content=f"Data caveat: {cav}", source="critic", layer="long_term",
-                                             type="factual", confidence=0.85, tags=["caveat", "domain:data_quality"],
-                                             missionId=None, actor="critic"))
+        noise = re.compile(r"parse error|sql|query|\bQ\d+\b|result rows|analyst finding", re.I)
+        caveats = list(self.case.get("coverage_caveats", []))
+        caveats += [c for r in self.case["rounds"] for c in (r.get("data_caveats") or []) if not noise.search(c)]
+        for cav in caveats:
+            by_profiler = cav in self.case.get("coverage_caveats", [])
+            m = self._remember_once(f"Data caveat: {cav}", source="profiler" if by_profiler else "critic",
+                                    layer="long_term", type="factual", confidence=0.9 if by_profiler else 0.8,
+                                    tags=["caveat", "domain:data_quality"], actor="profiler" if by_profiler else "critic")
+            if m:
+                written.append(m)
         for h in self.case["hypotheses"].values():
             last = h["attempts"][-1] if h["attempts"] else {}
             if h["status"] == "accepted":
-                written.append(self.hmem.add(
+                written.append(self._remember_once(
                     content=f"Finding for '{self.q}': {h['claim']} -> {last.get('finding')} (evidence {last.get('qid')})",
                     source="plan_completion", layer="working", type="factual", confidence=0.75,
                     tags=["finding"], missionId=mission, actor="critic"))
             elif h["status"] == "rejected":
-                written.append(self.hmem.add(
+                written.append(self._remember_once(
                     content=f"Refuted for '{self.q}': {h['claim']} - critic: {(h['critique'] or {}).get('reason')}",
                     source="critic", layer="working", type="factual", confidence=0.7, tags=["refuted"],
                     missionId=mission, actor="critic"))
@@ -381,6 +403,7 @@ class Investigation:
             self.trace("memory", "conflict", f"{len(outcomes)} possible contradictions between memories: "
                        f"{outcomes.count('resolved')} auto-resolved (loser marked supersededBy), "
                        f"{outcomes.count('queued')} queued for human review (decision confidence < 0.70)")
+        written = [m for m in written if m]
         self.hmem.save()
         self.trace("memory", "write", f"stored {len(written)} memories (caveats, findings, refuted hypotheses) "
                    f"-> {MEMORY_PATH.relative_to(ROOT) if MEMORY_PATH.is_relative_to(ROOT) else MEMORY_PATH}")
