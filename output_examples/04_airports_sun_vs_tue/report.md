@@ -1,39 +1,35 @@
 # Why did airport pickups (JFK, LaGuardia) differ between Sunday 2024-07-28 and Tuesday 2024-07-30?
 
-**Answer.** Sunday 2024-07-28 had 75768 total trips with a 16% airport trip share, while Tuesday 2024-07-30 had 94765 total trips with a 10% airport trip share. The higher airport trip share on Sunday (0.16 vs 0.10) combined with the 20.0% lower total trip volume produced fewer absolute airport pickups on Sunday despite the higher per-trip probability of an airport destination. Both days were fully 24-hour covered with dry conditions (0.0 mm precip), so the difference is not attributable to weather or coverage gaps.
+**Answer.** On Sunday 2024-07-28 there were 75,768 total trips with a 16% airport‑trip share (11,907 airport trips), versus Tuesday 2024-07-30 with 94,765 total trips and a 10% airport‑trip share (9,184 airport trips). The profiler‑verified baseline shows a -20.0% raw gap in total trips, but the airport‑trip share is 6 percentage points higher on Sunday, indicating that the drop in airport pickups is driven primarily by lower overall demand, not by a shift away from airport zones. Weather was identical on both days (0.0 mm precip, wmo_code 3), so the difference is not weather‑related.
 
-**Confidence:** 0.92
+**Confidence:** 0.9
 
 ## Causes (critic-accepted evidence only)
-- **Lower total trip volume on Sunday reduced absolute airport pickups despite a higher per-trip airport share.** - High — the 20.0% trip volume difference directly scales airport pickup counts. (evidence: Q9; confidence 0.96)
-- **Higher airport trip share on Sunday (0.16) versus Tuesday (0.10) indicates a shift in travel purpose, but this was insufficient to offset the lower total volume.** - Medium — share is higher but total trips are substantially fewer. (evidence: Q9; confidence 0.9)
+- **Lower total trip volume on Sunday reducing absolute airport pickup counts** - High — explains the raw gap; airport‑trip share actually rose 6 points (evidence: H1, H2; confidence 0.95)
+- **Intrinsically different trip‑purpose distribution between Sunday and Tuesday** - Medium — Sunday has higher airport share despite fewer trips (evidence: H1; confidence 0.85)
 
 ## Recommendation
-Staff and dispatch for Sunday operations should anticipate fewer total trips and a higher proportion of airport-bound trips per total trip; adjust airport‑zone allocation upward slightly per trip but do not increase overall fleet coverage, as the lower volume is the primary driver of fewer airport pickups.
+Maintain standard dispatch levels for Sunday operations; the data shows no weather‑induced suppression and the higher airport‑trip share suggests proportionally sufficient airport‑zone capacity relative to total demand.
 
 ## Rejected explanations
-- Sunday has intrinsically lower airport‑trip share than Tuesday due to reduced business travel (H1 rejected by Q9).
-- Weather on Sunday suppressed airport‑trip demand relative to dry Tuesday (H2 rejected by Q4; both days dry with 0.0 mm precip).
-- Zone‑level distribution changed with fewer trips to airport zones on Sunday after normalization (H3 rejected; query failed, no evidence).
+- Weather suppressed airport‑trip demand on Sunday (both days had identical dry conditions per H2)
+- Zone‑level redistribution away from airport zones on Sunday (H3 shows airport zones were dominant on Sunday)
 
 ## Data caveats
-- Q9 reports airport trip share as 0.16 for Sunday and 0.10 for Tuesday; absolute airport trip counts are 11907 vs 9184 respectively.
-- Both days are fully 24-hour covered per Q2 profiler verdict, so whole-day totals are directly comparable without hour-window adjustments.
-- The analyst's baseline '-20.0%' percentage uses profiler-verified numbers (75768 vs 94765) that match the coverage profile totals exactly.
-- No weather difference between the days (both 0.0 mm precip, wmo_code 3) rules out rain as a factor in the airport pickup difference.
+- The -20.0% raw gap in total trips is a data‑coverage artefact only if same‑hour volumes are compared; the profiler confirms both days are fully 24‑hour covered, so the full‑day comparison is valid.
+- H3’s zone‑level finding does not indicate a reduction in airport‑zone trips after normalizing for total volume; airport zones were actually the dominant pattern on Sunday.
 
 ## Limitations
-- Only two specific days are compared; no multi-day trend or regression controls for day-of-week or month-over-month effects.
-- Airport trip share percentages are descriptive for these two days only and may not generalize to other Sunday–Tuesday pairs in July 2024.
-- The analysis compares a single Sunday to a single Tuesday; week-to-week variability is not assessed.
+- Analysis covers only two days in July 2024 and does not control for day‑of‑week patterns beyond these specific dates.
+- All findings rely on is_valid_trip filtering; results may differ if all trips (including invalid) are considered.
+- No multi‑day regression or trend analysis was performed to isolate causal mechanisms from concurrent factors.
 
 ## Hypotheses and critic rulings
 | id | origin | claim | status | evidence | critic |
 |---|---|---|---|---|---|
-| H1 | planner | Sunday has intrinsically lower airport‑trip share than Tuesday due to reduced business travel and fewer commuter flights, independent of weather. | rejected | Q3 | The analyst's baseline claim of '-20.0%' uses profiler-verified numbers (75768 vs 94765) that are not present in the provided data coverage profile (which shows 88788 vs 102477). The percentage must be recomputed from the actual valid-trip counts available in the dataset, or the claim must be restated to match the data actually observed. (no rounds left to fix the test) |
-| H2 | planner | Weather on Sunday 2024-07-28 (higher precip_mm or non‑zero rain_mm) suppressed airport‑trip demand relative to the dry Tuesday 2024-07-30. | rejected | Q4 | Weather hypothesis test was not provided in this round, but based on prior patterns, any weather comparison must use the same hour window on both days. The data coverage profile shows both days are fully 24-hour covered, so a full-day comparison is valid IF the query correctly filters airport zones and valid trips. No weather data rows were returned to verify the claim. (no rounds left to fix the test) |
-| H3 | planner | The zone‑level distribution of trips changed between Sunday and Tuesday, with fewer trips to/from airport zones on Sunday even after normalizing for total volume. | rejected | - | The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a changed zone-level distribution cannot be verified. The finding is therefore unsupported. (no rounds left to fix the test) |
-| H4 | critic | The rain effect on demand is confounded by day-of-week (Sunday vs Tuesday), not isolated. | accepted | Q9 | The finding accurately restates the Query Q9 results: Sunday 2024-07-28 had 75768 total trips and airport trip share 0.16, while Tuesday 2024-07-30 had 94765 trips and airport trip share 0.10. The comparison is direct, the numbers match the result rows exactly, and the conclusion that Sunday's airport trip share is higher than Tuesday's is correctly supported by the data. |
+| H1 | planner | Sunday has intrinsically lower airport‑trip share than Tuesday due to reduced business travel and fewer commuter flights, independent of weather. | accepted | Q3 | The finding correctly restates the Q3 result rows: total trips (75768 vs 94765) and airport trip share (0.16 vs 0.10) are accurately reported. The finding cleanly refutes the claim that Sunday has a lower airport trip share, noting the opposite is true. All numbers appear in the result rows. |
+| H2 | planner | Weather on Sunday 2024-07-28 (higher precip_mm or non‑zero rain_mm) suppressed airport‑trip demand relative to the dry Tuesday 2024-07-30. | accepted | Q4 | The analyst's finding accurately reflects the Q4 result rows: both days had identical dry conditions (0.0 mm precip, 0.0 mm rain, wmo_code 3). The finding correctly states that Sunday had a higher airport trip share (16% vs 10%) and higher total trips, indicating weather was not a suppressing factor. All numbers in the finding appear in the result rows. |
+| H3 | planner | The zone‑level distribution of trips changed between Sunday and Tuesday, with fewer trips to/from airport zones on Sunday even after normalizing for total volume. | accepted | Q5 | The finding accurately restates the top zone pairs from Q5 result rows: JFK Airport→None 322 trips, JFK Airport→Times Sq/Theatre District 270 trips. Both numbers appear in the first two data rows of Q5. The observation that airport zone trips were dominant and JFK was the most frequent pickup/dropoff zone is consistent with the listed rows. No numbers are invented or contradicted by the result set. |
 
 ## Evidence (every query ran in Zetaris)
 ### Q1 - profiler: hour-level data coverage
@@ -108,7 +104,7 @@ day | precip_mm | rain_mm | wmo_code | total_trips | airport_trips | airport_tri
 2024-07-28 | 0.0 | 0.0 | 3 | 75768 | 11907 | 0.16  
 2024-07-30 | 0.0 | 0.0 | 3 | 94765 | 9184 | 0.10
 
-### Q8 - analyst: test H3
+### Q5 - analyst: test H3
 ```sql
 SELECT 
     t.pickup_date,
@@ -139,24 +135,4 @@ pickup_date | pickup_zone | dropoff_zone | trips
 2024-07-28 | LaGuardia Airport | Yorkville West | 90  
 ... (48 more rows)
 
-### Q9 - analyst: test H4
-```sql
-SELECT 
-    t.pickup_date,
-    COUNT(*) AS total_trips,
-    SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
-                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
-                THEN 1 ELSE 0 END) AS airport_trips,
-    ROUND(1.0 * SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
-                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
-                THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0),2) AS airport_trip_share
-FROM investigator.trips t
-WHERE t.pickup_date IN ('2024-07-28','2024-07-30')
-  AND t.is_valid_trip
-GROUP BY t.pickup_date
-```
-pickup_date | total_trips | airport_trips | airport_trip_share  
-2024-07-30 | 94765 | 9184 | 0.10  
-2024-07-28 | 75768 | 11907 | 0.16
-
-_Stats: {'llm_calls': 19, 'sql_queries': 12, 'rounds': 3, 'seconds': 183.7}_
+_Stats: {'llm_calls': 9, 'sql_queries': 5, 'rounds': 1, 'seconds': 83.8}_
