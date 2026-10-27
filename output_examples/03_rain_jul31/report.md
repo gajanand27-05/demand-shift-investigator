@@ -1,6 +1,6 @@
 # Did the rain on Wednesday 2024-07-31 change taxi demand or where people took taxis, compared with dry Tuesday 2024-07-30?
 
-**Answer.** Rain on Wednesday 2024-07-31 increased total trips by 4.2% and trips per hour by 4.1% compared to dry Tuesday 2024-07-30, and both total and airport trips per hour were higher on the rainy day (419.5 vs 382.7). The data does not support the hypothesis that rain reduced demand or diverted trips from airports; airport trips and per‑hour rates rose despite the rain. Zone‑level shifts are limited to Alphabet City‑Manhattan (33→47) and Alphabet City‑Brooklyn (2→6) and do not indicate a broader geographic redistribution away from airports.
+**Answer.** Rain on Wednesday 2024-07-31 increased total trips by 4.1% and trips per hour by 4.1% compared to dry Tuesday 2024-07-30, and both total and airport trips per hour were higher on the rainy day (4110.6 vs 3948.5; 419.5 vs 382.7). The data does not support the hypothesis that rain reduced demand or diverted trips from airports; airport trips and per‑hour rates rose despite the rain. Zone‑level shifts are not supported by the executed queries.
 
 **Confidence:** 0.91
 
@@ -259,4 +259,4 @@ pickup_date | pickup_hour | valid_trips | hours_covered | trips_per_hour | airpo
 2024-07-30 | 11 | 5130 | 2733 | 1.88 | 391 | 0.14 | 0.0 | 3.0  
 ... (36 more rows)
 
-_Stats: {'llm_calls': 23, 'sql_queries': 14, 'rounds': 3, 'seconds': 234.1}_
+_Stats: {'llm_calls': 23, 'sql_queries': 14, 'rounds': 3, 'seconds': 240.3}_
