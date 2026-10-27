@@ -29,20 +29,27 @@ Maintain standard dispatch levels for Saturday evenings within the 12–23 windo
 | H1 | planner | Saturday has intrinsically lower trip rates than Wednesday even within shared hours (12–23), due to reduced commuter travel and different leisure travel patterns on weekends. | accepted | Q3 | The query correctly isolates the 12-23 hour window on both days, yielding 12 shared hours. The trip counts (59,736 Saturday vs 70,674 Wednesday) and the 18.3% gap are directly from the result rows. The finding accurately notes that totals alone cannot isolate per-hour rates, which is an accurate limitation statement. No invented numbers or over-generalised claims. |
 | H2 | planner | Weather on Saturday 2024-07-27 (e.g., higher precipitation or temperature extremes) suppressed demand relative to the fair weather on Wednesday 2024-07-31. | rejected | Q4 | The query result shows Saturday had 0.0 mm precipitation and wmo_code 3 (clear), while Wednesday had 9.9 mm rain and wmo_code 63 (overcast). The analyst's finding states Saturday had 'no precipitation' and Wednesday 'fair weather', which inverts the actual conditions (Wednesday was rainy). More importantly, the finding claims weather 'was not the suppressing factor for Saturday demand' because Wednesday had more trips despite rain. This logic is flawed: the rain on Wednesday coincides with higher trips, but that does not prove weather had no role—it only shows the trip difference persists after observing these two specific weather states. The evidence does not support the claim that weather was not a factor; it merely describes a correlation for these two days. |
 | H3 | planner | Airport-related trips were disproportionately low on Saturday 2024-07-27 compared to Wednesday 2024-07-31, dragging down the total within the 12–23 window. | accepted | Q5 | The query correctly computes airport trips within the 12-23 window for both days. The numbers (6082 vs 6900) and the derived percentages (10.2% vs 9.8%) appear in the result rows. The finding accurately notes the slightly higher proportion on Saturday and that absolute airport trip counts are lower, which contributes to the total shortfall. No invented numbers or over-generalised claims. |
-| H4 | critic | Compare the hourly trip rate (trips per hour) within the 12-23 window for Saturday vs Wednesday to determine if the 18.3% gap persists when normalized by the 12 shared hours, which would indicate whether the difference is due to within-hour demand variation or other factors. | rejected | - | The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test) |
+| H4 | critic | Compare the hourly trip rate (trips per hour) within the 12-23 window for Saturday vs Wednesday to determine if the 18.3% gap persists when normalized by the 12 shared hours, which would indicate whether the difference is due to within-hour demand variation or other factors. | rejected | - | The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of an '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test) |
 
 ## Evidence (every query ran in Zetaris)
-### Q1 - profiler: data coverage per day
+### Q1 - profiler: hour-level data coverage
 ```sql
-SELECT pickup_date, pickup_dow, COUNT(*) AS trips, MIN(pickup_ts) AS first_pickup, MAX(pickup_ts) AS last_pickup, COUNT(DISTINCT pickup_hour) AS hours_covered FROM investigator.trips GROUP BY pickup_date, pickup_dow ORDER BY pickup_date
+SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS trips FROM investigator.trips GROUP BY pickup_date, pickup_dow, pickup_hour ORDER BY pickup_date, pickup_hour
 ```
-pickup_date | pickup_dow | trips | first_pickup | last_pickup | hours_covered  
-2024-07-27 | Saturday | 66660 | 2024-07-27 11:57:01.0 | 2024-07-27 23:59:58.0 | 13  
-2024-07-28 | Sunday | 88788 | 2024-07-28 00:00:00.0 | 2024-07-28 23:59:59.0 | 24  
-2024-07-29 | Monday | 87840 | 2024-07-29 00:00:02.0 | 2024-07-29 23:59:58.0 | 24  
-2024-07-30 | Tuesday | 102477 | 2024-07-30 00:00:00.0 | 2024-07-30 23:59:59.0 | 24  
-2024-07-31 | Wednesday | 109582 | 2024-07-31 00:00:00.0 | 2024-07-31 23:59:59.0 | 24  
-2024-08-01 | Thursday | 44653 | 2024-08-01 00:00:01.0 | 2024-08-01 18:35:06.0 | 19
+pickup_date | pickup_dow | pickup_hour | trips  
+2024-07-27 | Saturday | 11 | 241  
+2024-07-27 | Saturday | 12 | 4871  
+2024-07-27 | Saturday | 13 | 5331  
+2024-07-27 | Saturday | 14 | 5408  
+2024-07-27 | Saturday | 15 | 5867  
+2024-07-27 | Saturday | 16 | 6193  
+2024-07-27 | Saturday | 17 | 6166  
+2024-07-27 | Saturday | 18 | 6076  
+2024-07-27 | Saturday | 19 | 5525  
+2024-07-27 | Saturday | 20 | 4991  
+2024-07-27 | Saturday | 21 | 5092  
+2024-07-27 | Saturday | 22 | 5541  
+... (48 more rows)
 
 ### Q2 - profiler: like-for-like window 12:00-23:59
 ```sql
@@ -104,4 +111,4 @@ pickup_date | total_trips_in_window | airport_trips
 2024-07-31 | 70674 | 6900  
 2024-07-27 | 59736 | 6082
 
-_Stats: {'llm_calls': 17, 'sql_queries': 11, 'rounds': 3, 'seconds': 141.5}_
+_Stats: {'llm_calls': 17, 'sql_queries': 11, 'rounds': 3, 'seconds': 150.9}_

@@ -124,7 +124,9 @@ Reply with ONLY a JSON object:
 REPORTER_SYS = """You are the Report Writer. Write the final answer for a taxi fleet operations analyst.
 Use ONLY findings the critic accepted; cite them by their query ids (e.g. Q3). Rank causes by impact.
 Quantify how much of the raw gap is a data-coverage artefact and how much remains in a like-for-like (same hour window)
-comparison, if the findings allow. Describe only the days actually observed: no claims about months, seasons or
+comparison, if the findings allow. If the like-for-like (same hour window) volumes differ by less than about 5%,
+the apparent change IS a data-coverage artefact: say so plainly (there was no real demand change).
+Describe only the days actually observed: no claims about months, seasons or
 "all Saturdays" from one or two days.
 State rejected explanations briefly, data caveats, limitations and an actionable staffing/dispatch recommendation.
 Reply with ONLY a JSON object:

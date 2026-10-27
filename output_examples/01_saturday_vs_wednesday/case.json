@@ -2,7 +2,7 @@
  "question": "Why was taxi demand on Saturday 2024-07-27 so much lower than on Wednesday 2024-07-31?",
  "profile": {
   "qid": "Q1",
-  "table": "pickup_date | pickup_dow | trips | first_pickup | last_pickup | hours_covered\n2024-07-27 | Saturday | 66660 | 2024-07-27 11:57:01.0 | 2024-07-27 23:59:58.0 | 13\n2024-07-28 | Sunday | 88788 | 2024-07-28 00:00:00.0 | 2024-07-28 23:59:59.0 | 24\n2024-07-29 | Monday | 87840 | 2024-07-29 00:00:02.0 | 2024-07-29 23:59:58.0 | 24\n2024-07-30 | Tuesday | 102477 | 2024-07-30 00:00:00.0 | 2024-07-30 23:59:59.0 | 24\n2024-07-31 | Wednesday | 109582 | 2024-07-31 00:00:00.0 | 2024-07-31 23:59:59.0 | 24\n2024-08-01 | Thursday | 44653 | 2024-08-01 00:00:01.0 | 2024-08-01 18:35:06.0 | 19"
+  "table": "pickup_date | pickup_dow | trips | first_full_hour | last_full_hour | hours_covered\n2024-07-27 | Saturday | 66660 | 12:00 | 23:59 | 12\n2024-07-28 | Sunday | 88788 | 00:00 | 23:59 | 24\n2024-07-29 | Monday | 87840 | 00:00 | 23:59 | 24\n2024-07-30 | Tuesday | 102477 | 00:00 | 23:59 | 24\n2024-07-31 | Wednesday | 109582 | 00:00 | 23:59 | 24\n2024-08-01 | Thursday | 44653 | 00:00 | 13:59 | 14"
  },
  "memory": {
   "context": "",
@@ -13,7 +13,7 @@
  "plan": {
   "question_restated": "Why was taxi demand on Saturday 2024-07-27 so much lower than on Wednesday 2024-07-31?",
   "metric": "total_valid_trips_in_hourly_window (pickup_hour BETWEEN 12 AND 23) to ensure like-for-like comparison across days with different coverage",
-  "focus": "2024-07-27 (Saturday, 13h coverage 11:57\u201323:59) vs 2024-07-31 (Wednesday, full 24h coverage), using the profiler's like-for-like window of pickup_hour BETWEEN 12 AND 23",
+  "focus": "2024-07-27 (Saturday, 13h coverage 12:00\u201323:59) vs 2024-07-31 (Wednesday, full 24h coverage), using the profiler's like-for-like window of pickup_hour BETWEEN 12 AND 23",
   "baseline": "Wednesday 2024-07-31 full-day baseline (70,674 trips in the 12\u201323 window); compare Saturday 2024-07-27 trips in the same window (59,736) to the Wednesday baseline",
   "hypotheses": [
    {
@@ -151,7 +151,7 @@
    "critique": {
     "id": "H4",
     "verdict": "revise",
-    "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
+    "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of an '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
     "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 12-23 window."
    },
    "audit": {
@@ -165,67 +165,377 @@
  },
  "queries": {
   "Q1": {
-   "sql": "SELECT pickup_date, pickup_dow, COUNT(*) AS trips, MIN(pickup_ts) AS first_pickup, MAX(pickup_ts) AS last_pickup, COUNT(DISTINCT pickup_hour) AS hours_covered FROM investigator.trips GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
+   "sql": "SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS trips FROM investigator.trips GROUP BY pickup_date, pickup_dow, pickup_hour ORDER BY pickup_date, pickup_hour",
    "columns": [
     "pickup_date",
     "pickup_dow",
-    "trips",
-    "first_pickup",
-    "last_pickup",
-    "hours_covered"
+    "pickup_hour",
+    "trips"
    ],
    "rows": [
     [
      "2024-07-27",
      "Saturday",
-     "66660",
-     "2024-07-27 11:57:01.0",
-     "2024-07-27 23:59:58.0",
-     "13"
+     "11",
+     "241"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "12",
+     "4871"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "13",
+     "5331"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "14",
+     "5408"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "15",
+     "5867"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "16",
+     "6193"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "17",
+     "6166"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "18",
+     "6076"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "19",
+     "5525"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "20",
+     "4991"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "21",
+     "5092"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "22",
+     "5541"
+    ],
+    [
+     "2024-07-27",
+     "Saturday",
+     "23",
+     "5358"
     ],
     [
      "2024-07-28",
      "Sunday",
-     "88788",
-     "2024-07-28 00:00:00.0",
-     "2024-07-28 23:59:59.0",
-     "24"
+     "0",
+     "5002"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "1",
+     "4431"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "2",
+     "3408"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "3",
+     "2430"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "4",
+     "1420"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "5",
+     "555"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "6",
+     "843"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "7",
+     "1107"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "8",
+     "1779"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "9",
+     "2660"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "10",
+     "3769"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "11",
+     "4402"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "12",
+     "5194"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "13",
+     "5558"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "14",
+     "5683"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "15",
+     "5329"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "16",
+     "5372"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "17",
+     "5405"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "18",
+     "5160"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "19",
+     "4672"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "20",
+     "4317"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "21",
+     "4371"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "22",
+     "3645"
+    ],
+    [
+     "2024-07-28",
+     "Sunday",
+     "23",
+     "2276"
     ],
     [
      "2024-07-29",
      "Monday",
-     "87840",
-     "2024-07-29 00:00:02.0",
-     "2024-07-29 23:59:58.0",
-     "24"
+     "0",
+     "1240"
     ],
     [
-     "2024-07-30",
-     "Tuesday",
-     "102477",
-     "2024-07-30 00:00:00.0",
-     "2024-07-30 23:59:59.0",
-     "24"
+     "2024-07-29",
+     "Monday",
+     "1",
+     "729"
     ],
     [
-     "2024-07-31",
-     "Wednesday",
-     "109582",
-     "2024-07-31 00:00:00.0",
-     "2024-07-31 23:59:59.0",
-     "24"
+     "2024-07-29",
+     "Monday",
+     "2",
+     "303"
     ],
     [
-     "2024-08-01",
-     "Thursday",
-     "44653",
-     "2024-08-01 00:00:01.0",
-     "2024-08-01 18:35:06.0",
-     "19"
+     "2024-07-29",
+     "Monday",
+     "3",
+     "265"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "4",
+     "289"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "5",
+     "684"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "6",
+     "1611"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "7",
+     "3214"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "8",
+     "4526"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "9",
+     "4422"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "10",
+     "4468"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "11",
+     "4586"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "12",
+     "5095"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "13",
+     "5962"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "14",
+     "5697"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "15",
+     "5667"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "16",
+     "5916"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "17",
+     "6054"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "18",
+     "6113"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "19",
+     "5305"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "20",
+     "5049"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "21",
+     "4809"
+    ],
+    [
+     "2024-07-29",
+     "Monday",
+     "22",
+     "3638"
     ]
    ],
    "agent": "profiler",
-   "purpose": "data coverage per day"
+   "purpose": "hour-level data coverage"
   },
   "Q2": {
    "sql": "SELECT pickup_date, pickup_dow, COUNT(*) AS trips_in_window, COUNT(DISTINCT pickup_hour) AS hours_in_window FROM investigator.trips WHERE is_valid_trip AND pickup_date IN ('2024-07-27', '2024-07-31') AND pickup_hour BETWEEN 12 AND 23 GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
@@ -362,7 +672,7 @@
     {
      "id": "H4",
      "verdict": "revise",
-     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported.",
+     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of an '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported.",
      "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 12-23 window."
     }
    ],
@@ -377,7 +687,7 @@
     {
      "id": "H4",
      "verdict": "revise",
-     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
+     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of an '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
      "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 12-23 window."
     }
    ],
@@ -418,8 +728,8 @@
   ]
  },
  "coverage_caveats": [
-  "2024-07-27 (Saturday) is a partial day: trips only from 11:57 to 23:59 (13 of 24 hours), so its whole-day total undercounts demand; compare it only within the same hours.",
-  "2024-08-01 (Thursday) is a partial day: trips only from 00:00 to 18:35 (19 of 24 hours), so its whole-day total undercounts demand; compare it only within the same hours."
+  "2024-07-27 (Saturday) is a partial day: data only covers 12:00-23:59 (12 of 24 hours); outside that the export is cut off, so its whole-day total undercounts demand. Compare it only within the same hours.",
+  "2024-08-01 (Thursday) is a partial day: data only covers 00:00-13:59 (14 of 24 hours); outside that the export is cut off, so its whole-day total undercounts demand. Compare it only within the same hours."
  ],
  "window": {
   "qid": "Q2",
@@ -428,19 +738,19 @@
   "table": "pickup_date | pickup_dow | trips_in_window | hours_in_window\n2024-07-27 | Saturday | 59736 | 12\n2024-07-31 | Wednesday | 70674 | 12"
  },
  "memory_written": [
-  "mem-1d89a76add64",
-  "mem-734489d22188",
-  "mem-348381ff0d9a",
-  "mem-54f3ed115267",
-  "mem-62c8d846eeb9",
-  "mem-c8867d1cb511",
-  "mem-852f4574ac60",
-  "mem-768afe782c95"
+  "mem-99f7ef111822",
+  "mem-bc9e4f795eda",
+  "mem-c95c952b7516",
+  "mem-79c2e44f68b3",
+  "mem-1f23d557a6d1",
+  "mem-2bbf1c27245d",
+  "mem-acabb2ca51f9",
+  "mem-64819807d445"
  ],
  "stats": {
   "llm_calls": 17,
   "sql_queries": 11,
   "rounds": 3,
-  "seconds": 141.5
+  "seconds": 150.9
  }
 }

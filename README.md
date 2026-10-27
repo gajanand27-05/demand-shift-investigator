@@ -105,7 +105,7 @@ sample bucket), the 260 TLC taxi zones, and Open-Meteo historical weather (CC BY
 | `engines/hmem/` | H-MEM engine + official conformance vectors |
 | `data/setup/` | SQL + one-command setup |
 | `input_examples/`, `output_examples/` | sample questions and full outputs (report, case file, trace) |
-| `tests/` | conformance suite port, offline loop test, SQL guard test |
+| `tests/` | H-MEM conformance, evidence `audit()` unit tests, offline loop test, SQL guard test |
 
 ## Limitations
 
