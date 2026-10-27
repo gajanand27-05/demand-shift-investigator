@@ -1,0 +1,474 @@
+{
+ "e1532a2abc94de883fa0a1c3": {
+  "columns": [
+   "pickup_date",
+   "pickup_dow",
+   "trips",
+   "first_pickup",
+   "last_pickup",
+   "hours_covered"
+  ],
+  "rows": [
+   [
+    "2024-07-27",
+    "Saturday",
+    "66660",
+    "2024-07-27 11:57:01.0",
+    "2024-07-27 23:59:58.0",
+    "13"
+   ],
+   [
+    "2024-07-28",
+    "Sunday",
+    "88788",
+    "2024-07-28 00:00:00.0",
+    "2024-07-28 23:59:59.0",
+    "24"
+   ],
+   [
+    "2024-07-29",
+    "Monday",
+    "87840",
+    "2024-07-29 00:00:02.0",
+    "2024-07-29 23:59:58.0",
+    "24"
+   ],
+   [
+    "2024-07-30",
+    "Tuesday",
+    "102477",
+    "2024-07-30 00:00:00.0",
+    "2024-07-30 23:59:59.0",
+    "24"
+   ],
+   [
+    "2024-07-31",
+    "Wednesday",
+    "109582",
+    "2024-07-31 00:00:00.0",
+    "2024-07-31 23:59:59.0",
+    "24"
+   ],
+   [
+    "2024-08-01",
+    "Thursday",
+    "44653",
+    "2024-08-01 00:00:01.0",
+    "2024-08-01 18:35:06.0",
+    "19"
+   ]
+  ],
+  "sql": "SELECT pickup_date, pickup_dow, COUNT(*) AS trips, MIN(pickup_ts) AS first_pickup, MAX(pickup_ts) AS last_pickup, COUNT(DISTINCT pickup_hour) AS hours_covered FROM investigator.trips GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
+  "elapsed_s": 3.6
+ },
+ "0ee0c06e80051620c64258c3": {
+  "columns": [
+   "pickup_date",
+   "pickup_dow",
+   "trips",
+   "first_pickup",
+   "last_pickup",
+   "hours_covered"
+  ],
+  "rows": [
+   [
+    "2024-07-27",
+    "Saturday",
+    "66660",
+    "2024-07-27 11:57:01.0",
+    "2024-07-27 23:59:58.0",
+    "13"
+   ],
+   [
+    "2024-07-28",
+    "Sunday",
+    "88788",
+    "2024-07-28 00:00:00.0",
+    "2024-07-28 23:59:59.0",
+    "24"
+   ],
+   [
+    "2024-07-29",
+    "Monday",
+    "87840",
+    "2024-07-29 00:00:02.0",
+    "2024-07-29 23:59:58.0",
+    "24"
+   ],
+   [
+    "2024-07-30",
+    "Tuesday",
+    "102477",
+    "2024-07-30 00:00:00.0",
+    "2024-07-30 23:59:59.0",
+    "24"
+   ],
+   [
+    "2024-07-31",
+    "Wednesday",
+    "109582",
+    "2024-07-31 00:00:00.0",
+    "2024-07-31 23:59:59.0",
+    "24"
+   ],
+   [
+    "2024-08-01",
+    "Thursday",
+    "44653",
+    "2024-08-01 00:00:01.0",
+    "2024-08-01 18:35:06.0",
+    "19"
+   ]
+  ],
+  "sql": "SELECT pickup_date, pickup_dow, COUNT(*) AS trips, MIN(pickup_ts) AS first_pickup, MAX(pickup_ts) AS last_pickup, COUNT(DISTINCT pickup_hour) AS hours_covered FROM investigator.trips GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
+  "elapsed_s": 3.6
+ },
+ "e43a5a6ccb256c3dab8e391c": {
+  "text": "{\"question_restated\": \"Why was taxi demand on Saturday 2024-07-27 (66,660 trips) so much lower than on Wednesday 2024-07-31 (109,582 trips)?\", \"metric\": \"total_valid_trips_per_day (with hourly normalization to trips/hour)\", \"focus\": \"2024-07-27 (Saturday) vs 2024-07-31 (Wednesday)\", \"baseline\": \"Compare hourly trip rates (trips/hour) to normalize for the 13h vs 24h coverage gap; also compare Saturday 2024-07-27 to other July 2024 Saturdays for day-of-week context\", \"hypotheses\": [{\"id\": \"H1\", \"claim\": \"The apparent demand drop is primarily a data coverage artifact: Saturday 2024-07-27 only has 13 hours of trip data (11:57\u201323:59) vs 24 hours for Wednesday 2024-07-31, missing the early-morning hours entirely.\", \"test\": \"SELECT pickup_date, COUNT(*) AS trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(COUNT(*)/COUNT(DISTINCT pickup_hour),1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date\"}, {\"id\": \"H2\", \"claim\": \"Even after hourly normalization, Saturdays in July 2024 have intrinsically lower demand than Wednesdays due to day-of-week patterns (e.g., fewer commuters, different leisure timing).\", \"test\": \"SELECT pickup_dow, ROUND(AVG(hourly_trips),1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow\"}, {\"id\": \"H3\", \"claim\": \"Weather on 2024-07-27 (e.g., heavy rain or extreme heat) suppressed taxi demand relative to 2024-07-31.\", \"test\": \"SELECT w.day, w.temp_max_c, w.precip_mm, w.wmo_code, COUNT(t.trip_id) AS trips FROM investigator.nyc_daily_weather w LEFT JOIN investigator.trips t ON t.pickup_date = w.day AND t.is_valid_trip WHERE w.day IN ('2024-07-27','2024-07-31') GROUP BY w.day, w.temp_max_c, w.precip_mm, w.wmo_code\"}, {\"id\": \"H4\", \"claim\": \"Airport-related trips (which are high-volume) were unusually low on 2024-07-27 vs 2024-07-31, driving the overall gap.\", \"test\": \"SELECT pickup_date, SUM(CASE WHEN pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') OR dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') THEN 1 ELSE 0 END) AS airport_trips, COUNT(*) AS total_trips FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date\"}], \"memory_used\": []}",
+  "json": {
+   "question_restated": "Why was taxi demand on Saturday 2024-07-27 (66,660 trips) so much lower than on Wednesday 2024-07-31 (109,582 trips)?",
+   "metric": "total_valid_trips_per_day (with hourly normalization to trips/hour)",
+   "focus": "2024-07-27 (Saturday) vs 2024-07-31 (Wednesday)",
+   "baseline": "Compare hourly trip rates (trips/hour) to normalize for the 13h vs 24h coverage gap; also compare Saturday 2024-07-27 to other July 2024 Saturdays for day-of-week context",
+   "hypotheses": [
+    {
+     "id": "H1",
+     "claim": "The apparent demand drop is primarily a data coverage artifact: Saturday 2024-07-27 only has 13 hours of trip data (11:57\u201323:59) vs 24 hours for Wednesday 2024-07-31, missing the early-morning hours entirely.",
+     "test": "SELECT pickup_date, COUNT(*) AS trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(COUNT(*)/COUNT(DISTINCT pickup_hour),1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date"
+    },
+    {
+     "id": "H2",
+     "claim": "Even after hourly normalization, Saturdays in July 2024 have intrinsically lower demand than Wednesdays due to day-of-week patterns (e.g., fewer commuters, different leisure timing).",
+     "test": "SELECT pickup_dow, ROUND(AVG(hourly_trips),1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow"
+    },
+    {
+     "id": "H3",
+     "claim": "Weather on 2024-07-27 (e.g., heavy rain or extreme heat) suppressed taxi demand relative to 2024-07-31.",
+     "test": "SELECT w.day, w.temp_max_c, w.precip_mm, w.wmo_code, COUNT(t.trip_id) AS trips FROM investigator.nyc_daily_weather w LEFT JOIN investigator.trips t ON t.pickup_date = w.day AND t.is_valid_trip WHERE w.day IN ('2024-07-27','2024-07-31') GROUP BY w.day, w.temp_max_c, w.precip_mm, w.wmo_code"
+    },
+    {
+     "id": "H4",
+     "claim": "Airport-related trips (which are high-volume) were unusually low on 2024-07-27 vs 2024-07-31, driving the overall gap.",
+     "test": "SELECT pickup_date, SUM(CASE WHEN pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') OR dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') THEN 1 ELSE 0 END) AS airport_trips, COUNT(*) AS total_trips FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date"
+    }
+   ],
+   "memory_used": []
+  },
+  "model": "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  "latency_s": 39.87,
+  "attempt": 0
+ },
+ "300397ec2b8d7d6c7a4c93e8": {
+  "text": "{\"question_restated\": \"Why was taxi demand on Saturday 2024-07-27 (66,660 trips) so much lower than on Wednesday 2024-07-31 (109,582 trips)?\", \"metric\": \"total_valid_trips_per_day (with hourly normalization to trips/hour)\", \"focus\": \"2024-07-27 (Saturday) vs 2024-07-31 (Wednesday)\", \"baseline\": \"Compare hourly trip rates (trips/hour) to normalize for the 13h vs 24h coverage gap; also compare Saturday 2024-07-27 to other July 2024 Saturdays for day-of-week context\", \"hypotheses\": [{\"id\": \"H1\", \"claim\": \"The apparent demand drop is primarily a data coverage artifact: Saturday 2024-07-27 only has 13 hours of trip data (11:57\u201323:59) vs 24 hours for Wednesday 2024-07-31, missing the early-morning hours entirely.\", \"test\": \"SELECT pickup_date, COUNT(*) AS trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(COUNT(*)/COUNT(DISTINCT pickup_hour),1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date\"}, {\"id\": \"H2\", \"claim\": \"Even after hourly normalization, Saturdays in July 2024 have intrinsically lower demand than Wednesdays due to day-of-week patterns (e.g., fewer commuters, different leisure timing).\", \"test\": \"SELECT pickup_dow, ROUND(AVG(hourly_trips),1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow\"}, {\"id\": \"H3\", \"claim\": \"Weather on 2024-07-27 (e.g., heavy rain or extreme heat) suppressed taxi demand relative to 2024-07-31.\", \"test\": \"SELECT w.day, w.temp_max_c, w.precip_mm, w.wmo_code, COUNT(t.trip_id) AS trips FROM investigator.nyc_daily_weather w LEFT JOIN investigator.trips t ON t.pickup_date = w.day AND t.is_valid_trip WHERE w.day IN ('2024-07-27','2024-07-31') GROUP BY w.day, w.temp_max_c, w.precip_mm, w.wmo_code\"}, {\"id\": \"H4\", \"claim\": \"Airport-related trips (which are high-volume) were unusually low on 2024-07-27 vs 2024-07-31, driving the overall gap.\", \"test\": \"SELECT pickup_date, SUM(CASE WHEN pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') OR dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') THEN 1 ELSE 0 END) AS airport_trips, COUNT(*) AS total_trips FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date\"}], \"memory_used\": []}",
+  "json": {
+   "question_restated": "Why was taxi demand on Saturday 2024-07-27 (66,660 trips) so much lower than on Wednesday 2024-07-31 (109,582 trips)?",
+   "metric": "total_valid_trips_per_day (with hourly normalization to trips/hour)",
+   "focus": "2024-07-27 (Saturday) vs 2024-07-31 (Wednesday)",
+   "baseline": "Compare hourly trip rates (trips/hour) to normalize for the 13h vs 24h coverage gap; also compare Saturday 2024-07-27 to other July 2024 Saturdays for day-of-week context",
+   "hypotheses": [
+    {
+     "id": "H1",
+     "claim": "The apparent demand drop is primarily a data coverage artifact: Saturday 2024-07-27 only has 13 hours of trip data (11:57\u201323:59) vs 24 hours for Wednesday 2024-07-31, missing the early-morning hours entirely.",
+     "test": "SELECT pickup_date, COUNT(*) AS trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(COUNT(*)/COUNT(DISTINCT pickup_hour),1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date"
+    },
+    {
+     "id": "H2",
+     "claim": "Even after hourly normalization, Saturdays in July 2024 have intrinsically lower demand than Wednesdays due to day-of-week patterns (e.g., fewer commuters, different leisure timing).",
+     "test": "SELECT pickup_dow, ROUND(AVG(hourly_trips),1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow"
+    },
+    {
+     "id": "H3",
+     "claim": "Weather on 2024-07-27 (e.g., heavy rain or extreme heat) suppressed taxi demand relative to 2024-07-31.",
+     "test": "SELECT w.day, w.temp_max_c, w.precip_mm, w.wmo_code, COUNT(t.trip_id) AS trips FROM investigator.nyc_daily_weather w LEFT JOIN investigator.trips t ON t.pickup_date = w.day AND t.is_valid_trip WHERE w.day IN ('2024-07-27','2024-07-31') GROUP BY w.day, w.temp_max_c, w.precip_mm, w.wmo_code"
+    },
+    {
+     "id": "H4",
+     "claim": "Airport-related trips (which are high-volume) were unusually low on 2024-07-27 vs 2024-07-31, driving the overall gap.",
+     "test": "SELECT pickup_date, SUM(CASE WHEN pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') OR dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport') THEN 1 ELSE 0 END) AS airport_trips, COUNT(*) AS total_trips FROM investigator.trips WHERE pickup_date IN ('2024-07-27','2024-07-31') AND is_valid_trip GROUP BY pickup_date"
+    }
+   ],
+   "memory_used": []
+  },
+  "model": "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  "latency_s": 39.87,
+  "attempt": 0
+ },
+ "7ad703d357d5665586a76be4": {
+  "text": "{\"sql\": \"SELECT pickup_date, COUNT(*) AS total_trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT pickup_hour), 1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27', '2024-07-31') AND is_valid_trip GROUP BY pickup_date\", \"why\": \"This query directly tests Hypothesis H1 by calculating the total trips, the number of distinct hours covered, and the normalized hourly trip rate (trips/hour) for both the focus dates (2024-07-27 and 2024-07-31). This allows for a direct comparison of trip density, accounting for the potential data coverage gap (13h vs 24h) mentioned in the hypothesis.\"}",
+  "json": {
+   "sql": "SELECT pickup_date, COUNT(*) AS total_trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT pickup_hour), 1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27', '2024-07-31') AND is_valid_trip GROUP BY pickup_date",
+   "why": "This query directly tests Hypothesis H1 by calculating the total trips, the number of distinct hours covered, and the normalized hourly trip rate (trips/hour) for both the focus dates (2024-07-27 and 2024-07-31). This allows for a direct comparison of trip density, accounting for the potential data coverage gap (13h vs 24h) mentioned in the hypothesis."
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 5.1,
+  "attempt": 0
+ },
+ "ca66cae532f1054a7d2f0dc0": {
+  "text": "{\"sql\": \"SELECT pickup_date, COUNT(*) AS total_trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT pickup_hour), 1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27', '2024-07-31') AND is_valid_trip GROUP BY pickup_date\", \"why\": \"This query directly tests Hypothesis H1 by calculating the total trips, the number of distinct hours covered, and the normalized hourly trip rate (trips/hour) for both the focus dates (2024-07-27 and 2024-07-31). This allows for a direct comparison of trip density, accounting for the potential data coverage gap (13h vs 24h) mentioned in the hypothesis.\"}",
+  "json": {
+   "sql": "SELECT pickup_date, COUNT(*) AS total_trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT pickup_hour), 1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27', '2024-07-31') AND is_valid_trip GROUP BY pickup_date",
+   "why": "This query directly tests Hypothesis H1 by calculating the total trips, the number of distinct hours covered, and the normalized hourly trip rate (trips/hour) for both the focus dates (2024-07-27 and 2024-07-31). This allows for a direct comparison of trip density, accounting for the potential data coverage gap (13h vs 24h) mentioned in the hypothesis."
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 5.1,
+  "attempt": 0
+ },
+ "c900438cbc8634fa0102f6e9": {
+  "columns": [
+   "pickup_date",
+   "total_trips",
+   "hours_covered",
+   "trips_per_hour"
+  ],
+  "rows": [
+   [
+    "2024-07-31",
+    "98655",
+    "24",
+    "4110.6"
+   ],
+   [
+    "2024-07-27",
+    "59957",
+    "13",
+    "4612.1"
+   ]
+  ],
+  "sql": "SELECT pickup_date, COUNT(*) AS total_trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT pickup_hour), 1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27', '2024-07-31') AND is_valid_trip GROUP BY pickup_date",
+  "elapsed_s": 3.79
+ },
+ "9e714a4f1ccdfc8a9491e5bf": {
+  "columns": [
+   "pickup_date",
+   "total_trips",
+   "hours_covered",
+   "trips_per_hour"
+  ],
+  "rows": [
+   [
+    "2024-07-31",
+    "98655",
+    "24",
+    "4110.6"
+   ],
+   [
+    "2024-07-27",
+    "59957",
+    "13",
+    "4612.1"
+   ]
+  ],
+  "sql": "SELECT pickup_date, COUNT(*) AS total_trips, COUNT(DISTINCT pickup_hour) AS hours_covered, ROUND(CAST(COUNT(*) AS DOUBLE) / COUNT(DISTINCT pickup_hour), 1) AS trips_per_hour FROM investigator.trips WHERE pickup_date IN ('2024-07-27', '2024-07-31') AND is_valid_trip GROUP BY pickup_date",
+  "elapsed_s": 3.79
+ },
+ "bdc7227abc3cec30bacdc412": {
+  "text": "{\"finding\": \"The data coverage differs, with 2024-07-31 having 24 hours covered and 2024-07-27 having 13 hours covered. The trips per hour for 2024-07-31 is 4110.6 and for 2024-07-27 is 4612.1.\", \"key_numbers\": {\"2024-07-31_trips\": 98655, \"2024-07-27_trips\": 59957}, \"direction\": \"supports\"}",
+  "json": {
+   "finding": "The data coverage differs, with 2024-07-31 having 24 hours covered and 2024-07-27 having 13 hours covered. The trips per hour for 2024-07-31 is 4110.6 and for 2024-07-27 is 4612.1.",
+   "key_numbers": {
+    "2024-07-31_trips": 98655,
+    "2024-07-27_trips": 59957
+   },
+   "direction": "supports"
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 3.72,
+  "attempt": 0
+ },
+ "f9e5b216e7b99d56026cd136": {
+  "text": "{\"finding\": \"The data coverage differs, with 2024-07-31 having 24 hours covered and 2024-07-27 having 13 hours covered. The trips per hour for 2024-07-31 is 4110.6 and for 2024-07-27 is 4612.1.\", \"key_numbers\": {\"2024-07-31_trips\": 98655, \"2024-07-27_trips\": 59957}, \"direction\": \"supports\"}",
+  "json": {
+   "finding": "The data coverage differs, with 2024-07-31 having 24 hours covered and 2024-07-27 having 13 hours covered. The trips per hour for 2024-07-31 is 4110.6 and for 2024-07-27 is 4612.1.",
+   "key_numbers": {
+    "2024-07-31_trips": 98655,
+    "2024-07-27_trips": 59957
+   },
+   "direction": "supports"
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 3.72,
+  "attempt": 0
+ },
+ "9eb4fb7c1796893eaddc1232": {
+  "text": "{\"sql\": \"SELECT pickup_dow, ROUND(AVG(hourly_trips), 1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow\", \"why\": \"This query tests Hypothesis H2 by calculating the average hourly trip count for each day of the week (pickup_dow) across all of July 2024. This allows for a direct comparison of intrinsic day-of-week demand patterns, normalizing for the varying number of hours covered on specific days, which addresses the baseline requirement.\"}",
+  "json": {
+   "sql": "SELECT pickup_dow, ROUND(AVG(hourly_trips), 1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow",
+   "why": "This query tests Hypothesis H2 by calculating the average hourly trip count for each day of the week (pickup_dow) across all of July 2024. This allows for a direct comparison of intrinsic day-of-week demand patterns, normalizing for the varying number of hours covered on specific days, which addresses the baseline requirement."
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 3.74,
+  "attempt": 0
+ },
+ "fcbdc2d41c00e4533d59ded4": {
+  "text": "{\"sql\": \"SELECT pickup_dow, ROUND(AVG(hourly_trips), 1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow\", \"why\": \"This query tests Hypothesis H2 by calculating the average hourly trip count for each day of the week (pickup_dow) across all of July 2024. This allows for a direct comparison of intrinsic day-of-week demand patterns, normalizing for the varying number of hours covered on specific days, which addresses the baseline requirement.\"}",
+  "json": {
+   "sql": "SELECT pickup_dow, ROUND(AVG(hourly_trips), 1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow",
+   "why": "This query tests Hypothesis H2 by calculating the average hourly trip count for each day of the week (pickup_dow) across all of July 2024. This allows for a direct comparison of intrinsic day-of-week demand patterns, normalizing for the varying number of hours covered on specific days, which addresses the baseline requirement."
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 3.74,
+  "attempt": 0
+ },
+ "022fad94d5fb50c5238fa088": {
+  "columns": [
+   "pickup_dow",
+   "avg_trips_per_hour"
+  ],
+  "rows": [
+   [
+    "Monday",
+    "3361.8"
+   ],
+   [
+    "Saturday",
+    "4612.1"
+   ],
+   [
+    "Sunday",
+    "3157.0"
+   ],
+   [
+    "Tuesday",
+    "3948.5"
+   ],
+   [
+    "Wednesday",
+    "4110.6"
+   ]
+  ],
+  "sql": "SELECT pickup_dow, ROUND(AVG(hourly_trips), 1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow",
+  "elapsed_s": 3.61
+ },
+ "1f9af3938ffb700ed02c0b04": {
+  "columns": [
+   "pickup_dow",
+   "avg_trips_per_hour"
+  ],
+  "rows": [
+   [
+    "Monday",
+    "3361.8"
+   ],
+   [
+    "Saturday",
+    "4612.1"
+   ],
+   [
+    "Sunday",
+    "3157.0"
+   ],
+   [
+    "Tuesday",
+    "3948.5"
+   ],
+   [
+    "Wednesday",
+    "4110.6"
+   ]
+  ],
+  "sql": "SELECT pickup_dow, ROUND(AVG(hourly_trips), 1) AS avg_trips_per_hour FROM (SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS hourly_trips FROM investigator.trips WHERE pickup_date BETWEEN '2024-07-01' AND '2024-07-31' AND is_valid_trip GROUP BY pickup_date, pickup_dow, pickup_hour) t GROUP BY pickup_dow ORDER BY pickup_dow",
+  "elapsed_s": 3.61
+ },
+ "0615c1703d70e3840e96d8a3": {
+  "text": "{\"finding\": \"The average hourly trips for Saturdays was 4612.1, which is higher than the average hourly trips for Wednesdays at 4110.6, contrary to the hypothesis.\", \"key_numbers\": {\"Saturday\": 4612.1, \"Wednesday\": 4110.6}, \"direction\": \"refutes\"}",
+  "json": {
+   "finding": "The average hourly trips for Saturdays was 4612.1, which is higher than the average hourly trips for Wednesdays at 4110.6, contrary to the hypothesis.",
+   "key_numbers": {
+    "Saturday": 4612.1,
+    "Wednesday": 4110.6
+   },
+   "direction": "refutes"
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 1.71,
+  "attempt": 0
+ },
+ "8a7eab649301fd6c754a3219": {
+  "text": "{\"finding\": \"The average hourly trips for Saturdays was 4612.1, which is higher than the average hourly trips for Wednesdays at 4110.6, contrary to the hypothesis.\", \"key_numbers\": {\"Saturday\": 4612.1, \"Wednesday\": 4110.6}, \"direction\": \"refutes\"}",
+  "json": {
+   "finding": "The average hourly trips for Saturdays was 4612.1, which is higher than the average hourly trips for Wednesdays at 4110.6, contrary to the hypothesis.",
+   "key_numbers": {
+    "Saturday": 4612.1,
+    "Wednesday": 4110.6
+   },
+   "direction": "refutes"
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 1.71,
+  "attempt": 0
+ },
+ "3f63664187da28820d3e0428": {
+  "text": "{\"sql\": \"SELECT t.pickup_date, COUNT(t.trip_id) AS total_trips, w.temp_max_c, w.precip_mm, w.wmo_code FROM investigator.trips t JOIN investigator.nyc_daily_weather w ON t.pickup_date = w.day AND t.is_valid_trip WHERE t.pickup_date IN ('2024-07-27', '2024-07-31') GROUP BY t.pickup_date, w.temp_max_c, w.precip_mm, w.wmo_code\", \"why\": \"This query directly tests Hypothesis H3 by joining trip data with daily weather data for the focus dates (2024-07-27 and 2024-07-31). It aggregates the total number of valid trips for each day, alongside the corresponding maximum temperature, precipitation, and WMO code, allowing for a direct comparison of demand against weather conditions between the Saturday and the Wednesday.\"}",
+  "json": {
+   "sql": "SELECT t.pickup_date, COUNT(t.trip_id) AS total_trips, w.temp_max_c, w.precip_mm, w.wmo_code FROM investigator.trips t JOIN investigator.nyc_daily_weather w ON t.pickup_date = w.day AND t.is_valid_trip WHERE t.pickup_date IN ('2024-07-27', '2024-07-31') GROUP BY t.pickup_date, w.temp_max_c, w.precip_mm, w.wmo_code",
+   "why": "This query directly tests Hypothesis H3 by joining trip data with daily weather data for the focus dates (2024-07-27 and 2024-07-31). It aggregates the total number of valid trips for each day, alongside the corresponding maximum temperature, precipitation, and WMO code, allowing for a direct comparison of demand against weather conditions between the Saturday and the Wednesday."
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 4.74,
+  "attempt": 0
+ },
+ "2b93a22d4a5e7d260304ca9c": {
+  "text": "{\"sql\": \"SELECT t.pickup_date, COUNT(t.trip_id) AS total_trips, w.temp_max_c, w.precip_mm, w.wmo_code FROM investigator.trips t JOIN investigator.nyc_daily_weather w ON t.pickup_date = w.day AND t.is_valid_trip WHERE t.pickup_date IN ('2024-07-27', '2024-07-31') GROUP BY t.pickup_date, w.temp_max_c, w.precip_mm, w.wmo_code\", \"why\": \"This query directly tests Hypothesis H3 by joining trip data with daily weather data for the focus dates (2024-07-27 and 2024-07-31). It aggregates the total number of valid trips for each day, alongside the corresponding maximum temperature, precipitation, and WMO code, allowing for a direct comparison of demand against weather conditions between the Saturday and the Wednesday.\"}",
+  "json": {
+   "sql": "SELECT t.pickup_date, COUNT(t.trip_id) AS total_trips, w.temp_max_c, w.precip_mm, w.wmo_code FROM investigator.trips t JOIN investigator.nyc_daily_weather w ON t.pickup_date = w.day AND t.is_valid_trip WHERE t.pickup_date IN ('2024-07-27', '2024-07-31') GROUP BY t.pickup_date, w.temp_max_c, w.precip_mm, w.wmo_code",
+   "why": "This query directly tests Hypothesis H3 by joining trip data with daily weather data for the focus dates (2024-07-27 and 2024-07-31). It aggregates the total number of valid trips for each day, alongside the corresponding maximum temperature, precipitation, and WMO code, allowing for a direct comparison of demand against weather conditions between the Saturday and the Wednesday."
+  },
+  "model": "nvidia/nvidia/nemotron-3.5-bolt-e4b",
+  "latency_s": 4.74,
+  "attempt": 0
+ },
+ "e4c5276a76b80268ca97caac": {
+  "columns": [
+   "pickup_date",
+   "total_trips",
+   "temp_max_c",
+   "precip_mm",
+   "wmo_code"
+  ],
+  "rows": [
+   [
+    "2024-07-31",
+    "98655",
+    "32.1",
+    "9.9",
+    "63"
+   ],
+   [
+    "2024-07-27",
+    "59957",
+    "30.1",
+    "0.0",
+    "3"
+   ]
+  ],
+  "sql": "SELECT t.pickup_date, COUNT(t.trip_id) AS total_trips, w.temp_max_c, w.precip_mm, w.wmo_code FROM investigator.trips t JOIN investigator.nyc_daily_weather w ON t.pickup_date = w.day AND t.is_valid_trip WHERE t.pickup_date IN ('2024-07-27', '2024-07-31') GROUP BY t.pickup_date, w.temp_max_c, w.precip_mm, w.wmo_code",
+  "elapsed_s": 6.46
+ },
+ "7ab230bb4350042830ac134e": {
+  "columns": [
+   "pickup_date",
+   "total_trips",
+   "temp_max_c",
+   "precip_mm",
+   "wmo_code"
+  ],
+  "rows": [
+   [
+    "2024-07-31",
+    "98655",
+    "32.1",
+    "9.9",
+    "63"
+   ],
+   [
+    "2024-07-27",
+    "59957",
+    "30.1",
+    "0.0",
+    "3"
+   ]
+  ],
+  "sql": "SELECT t.pickup_date, COUNT(t.trip_id) AS total_trips, w.temp_max_c, w.precip_mm, w.wmo_code FROM investigator.trips t JOIN investigator.nyc_daily_weather w ON t.pickup_date = w.day AND t.is_valid_trip WHERE t.pickup_date IN ('2024-07-27', '2024-07-31') GROUP BY t.pickup_date, w.temp_max_c, w.precip_mm, w.wmo_code",
+  "elapsed_s": 6.46
+ }
+}

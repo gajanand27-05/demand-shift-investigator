@@ -38,7 +38,7 @@ MAX_HYPOTHESES = 4
 MAX_SQL_RETRIES = 2
 MAX_ROUNDS = 3          # critic review rounds
 MAX_LLM_CALLS = 40
-MAX_WALL_S = 9 * 60
+MAX_WALL_S = 12 * 60
 
 # ---------------------------------------------------------------------------------------------------
 # Trace: every agent step is printed and saved, so the reasoning is visible.
