@@ -122,11 +122,21 @@ Reply with ONLY a JSON object:
  "missing_hypothesis": {"claim": str, "test": str} or null,
  "data_caveats": [str], "decision": "approve"|"another_round"}"""
 
+FINAL_REVIEW_SYS = """You are the Evidence Critic doing a final check of the report before it reaches the analyst.
+Check every comparison in the draft: does each direction word (drop, decline, fewer, lower, rise, more, higher) match the
+numbers it describes? For example, "a drop in airport pickups" is WRONG if the airport number went from 9,184 to 11,907.
+Also flag any sentence that contradicts another. Do not add new facts or numbers; only fix wording.
+Reply with ONLY a JSON object:
+{"consistent": true|false, "problems": [str], "fixed_answer": str (the corrected answer, or "" if consistent),
+ "fixed_recommendation": str (or "")}"""
+
 REPORTER_SYS = """You are the Report Writer. Write the final answer for a taxi fleet operations analyst.
 Use ONLY findings the critic accepted; cite them by their query ids (e.g. Q3). Rank causes by impact.
 Quantify how much of the raw gap is a data-coverage artefact and how much remains in a like-for-like (same hour window)
 comparison, if the findings allow. If the like-for-like (same hour window) volumes differ by less than about 5%,
 the apparent change IS a data-coverage artefact: say so plainly (there was no real demand change).
+DIRECTION CHECK: for every pair of numbers you compare, state the direction the numbers actually show (11,907 vs 9,184
+means MORE, not fewer). Never call something a drop or decline if its number went up; a metric can rise while the total falls.
 Describe only the days actually observed: no claims about months, seasons or
 "all Saturdays" from one or two days.
 State rejected explanations briefly, data caveats, limitations and an actionable staffing/dispatch recommendation.
@@ -415,6 +425,17 @@ class Investigation:
             self.trace("critic", "audit", f"report over-generalises ({sorted(set(f.lower() for f in flags))}); asking for a rewrite")
             rep = self.ask("reporter", REPORTER_SYS, user + f"\n\nYour previous draft over-generalised with {sorted(set(flags))}. "
                            f"Rewrite it describing only the observed days.\nPrevious draft: {json.dumps(rep)[:1500]}")
+        # Final evaluator pass: the critic checks the answer against its own numbers (direction words, contradictions).
+        review = self.ask("critic", FINAL_REVIEW_SYS, f"Question: {self.q}\n\nDraft answer:\n{rep.get('answer', '')}\n\n"
+                          f"Recommendation:\n{rep.get('recommendation', '')}")
+        if review.get("consistent") is False and review.get("fixed_answer"):
+            self.trace("critic", "revise", f"final answer contradicted its own numbers: {review.get('problems')}; corrected")
+            rep["answer_draft"] = rep.get("answer")
+            rep["answer"] = review["fixed_answer"]
+            if review.get("fixed_recommendation"):
+                rep["recommendation"] = review["fixed_recommendation"]
+        else:
+            self.trace("critic", "accept", "final answer is consistent with its numbers")
         self.case["report"] = rep
         self.trace("reporter", "answer", rep.get("answer", ""))
 

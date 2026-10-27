@@ -34,6 +34,8 @@ class FakeModel:
             j = {"sql": sql, "why": "compare days"}
         elif role == "analyst":
             j = {"finding": "Jul 27 had 66660 trips vs 109582 on Jul 31", "key_numbers": {"jul27": 66660}, "direction": "supports"}
+        elif role == "critic" and "final check" in system:
+            j = {"consistent": True, "problems": [], "fixed_answer": "", "fixed_recommendation": ""}
         elif role == "critic":
             self.critic_rounds += 1
             if self.critic_rounds == 1:
@@ -82,7 +84,7 @@ def test_loop_revises_retries_and_remembers(offline):
     assert hs["H1"]["status"] == "accepted" and len(hs["H1"]["attempts"]) == 2   # revised after critique
     assert hs["H2"]["status"] == "rejected"
     assert hs["H3"]["origin"] == "critic" and hs["H3"]["status"] == "accepted"   # critic-added branch
-    assert [r for r, _ in fake.calls].count("critic") == 2                       # Planner<->Analyst<->Critic loop
+    assert fake.critic_rounds == 2                                               # Planner<->Analyst<->Critic loop
     assert any("failed in Zetaris" in u for r, u in fake.calls if r == "analyst")  # SQL error fed back for repair
     assert case["report"]["answer"]
     assert all(q["sql"].lower().startswith("select") for q in case["queries"].values())
