@@ -99,13 +99,19 @@ def chat(role: str, system: str, user: str, temperature: float = 0.2) -> dict:
         if hit is None:
             raise RuntimeError(f"SAMPLE_MODE: no recorded reply for this {role} prompt (run once live to record)")
         return {**hit, "cached": True}
-    model = model_for(role)
+    primary = model_for(role)
+    fallback = os.environ.get("NEMOTRON_FALLBACK_MODEL")
+    # Nemotron reasoning can burn the whole token budget "thinking"; answers here are short JSON, so thinking is off
+    # unless LLM_THINKING=true (Nightshift passes chat_template_kwargs through to the lane).
+    extra = {} if os.environ.get("LLM_THINKING", "false").lower() == "true" else         {"chat_template_kwargs": {"enable_thinking": False}}
     last_err = None
     for attempt in range(MAX_RETRIES + 1):
+        model = fallback if (fallback and attempt == MAX_RETRIES) else primary   # last try: fallback lane
         t0 = time.time()
         try:
             resp = client().chat.completions.create(model=model, messages=messages, temperature=temperature,
-                                                    max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "2000")))
+                                                    max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "2000")),
+                                                    extra_body=extra)
             text = resp.choices[0].message.content or ""
             out = {"text": text, "json": parse_json(text), "model": getattr(resp, "model", model),
                    "latency_s": round(time.time() - t0, 2), "attempt": attempt}
