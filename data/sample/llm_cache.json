@@ -777,7 +777,7 @@
    ]
   ],
   "sql": "SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS trips FROM investigator.trips GROUP BY pickup_date, pickup_dow, pickup_hour ORDER BY pickup_date, pickup_hour",
-  "elapsed_s": 3.26
+  "elapsed_s": 3.03
  },
  "0ee0c06e80051620c64258c3": {
   "columns": [
@@ -1581,7 +1581,7 @@
    ]
   ],
   "sql": "SELECT pickup_date, pickup_dow, COUNT(*) AS trips_in_window, COUNT(DISTINCT pickup_hour) AS hours_in_window FROM investigator.trips WHERE is_valid_trip AND pickup_date IN ('2024-07-27', '2024-07-31') AND pickup_hour BETWEEN 12 AND 23 GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
-  "elapsed_s": 2.95
+  "elapsed_s": 3.13
  },
  "d3b3e6e5d0b9670bcb6fe8be": {
   "columns": [
@@ -13740,5 +13740,26 @@
   "model": "local-runtime/nemotron-3.5-lightning-30b-a3b",
   "latency_s": 10.94,
   "attempt": 0
+ },
+ "e2f37588c719954e95b30310": {
+  "columns": [
+   "pickup_date",
+   "pickup_dow",
+   "valid_trips"
+  ],
+  "rows": [
+   [
+    "2024-07-30",
+    "Tuesday",
+    "94765"
+   ],
+   [
+    "2024-07-31",
+    "Wednesday",
+    "98655"
+   ]
+  ],
+  "sql": "SELECT pickup_date, pickup_dow, COUNT(*) AS valid_trips FROM investigator.trips WHERE is_valid_trip AND pickup_date IN ('2024-07-30', '2024-07-31') GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
+  "elapsed_s": 3.5
  }
 }

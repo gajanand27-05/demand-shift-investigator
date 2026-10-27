@@ -198,7 +198,22 @@ class Investigation:
             f"export is cut off, so its whole-day total undercounts demand. Compare it only within the same hours."
             for r in partial]
         # Like-for-like window: when the days in the question cover different hours, compare only the shared hours.
-        days = sorted(set(re.findall(r"\d{4}-\d{2}-\d{2}", self.q)))
+        mentioned = list(dict.fromkeys(re.findall(r"\d{4}-\d{2}-\d{2}", self.q)))
+        days = sorted(mentioned)
+        if len(days) == 2 and all(d in days_info for d in days) and len({len(days_info[d]["full"]) for d in days}) == 1:
+            # same coverage on both days: still compute the headline change in code, so no agent does the arithmetic
+            day_list = ", ".join(f"'{d}'" for d in days)
+            cq, cres = self.sql("profiler", f"SELECT pickup_date, pickup_dow, COUNT(*) AS valid_trips FROM investigator.trips "
+                                f"WHERE is_valid_trip AND pickup_date IN ({day_list}) GROUP BY pickup_date, pickup_dow "
+                                f"ORDER BY pickup_date", "headline comparison")
+            counts = {r[0]: int(r[2]) for r in cres["rows"]}
+            if len(counts) == 2:
+                f_, b_ = mentioned[0], mentioned[1]
+                pct = 100.0 * (counts[f_] - counts[b_]) / counts[b_]
+                self.case["compare"] = (f"PROFILER VERDICT ({cq}): both days are fully covered, so whole-day totals are "
+                                        f"comparable: {f_} {counts[f_]} vs {b_} {counts[b_]} valid trips = {pct:+.1f}%. "
+                                        f"Use this exact percentage; do not recompute it.")
+                self.trace("profiler", "verdict", self.case["compare"])
         if len(days) >= 2 and all(d in days_info for d in days) and len({len(days_info[d]["full"]) for d in days}) > 1:
             shared = set.intersection(*(set(days_info[d]["full"]) for d in days))
             if shared:
@@ -211,9 +226,9 @@ class Investigation:
                                     f"like-for-like window {lo:02d}:00-{hi:02d}:59")
                 verdict = ""
                 if len(wres["rows"]) == 2:
-                    (d1, _, n1, _), (d2, _, n2, _) = wres["rows"]
-                    full_days = [d for d in days if len(days_info[d]["full"]) == 24]
-                    base, focus = ((d1, int(n1)), (d2, int(n2))) if d1 in full_days else ((d2, int(n2)), (d1, int(n1)))
+                    counts = {r[0]: int(r[2]) for r in wres["rows"]}
+                    focus_day, base_day = mentioned[0], mentioned[1]   # the day asked about first is the focus
+                    focus, base = (focus_day, counts[focus_day]), (base_day, counts[base_day])
                     pct = 100.0 * (focus[1] - base[1]) / base[1]
                     raw = {d: sum(days_info[d]["hours"].values()) for d in days}
                     raw_pct = 100.0 * (raw[focus[0]] - raw[base[0]]) / raw[base[0]]
@@ -222,7 +237,7 @@ class Investigation:
                             "so part of the raw gap is coverage, and a real like-for-like difference remains")
                     verdict = (f"PROFILER VERDICT: whole-day totals differ by {raw_pct:+.1f}% ({focus[0]} vs {base[0]}), "
                                f"but within the shared hours they differ by {pct:+.1f}% ({focus[1]} vs {base[1]} "
-                               f"valid trips), {kind}.")
+                               f"valid trips), {kind}. Use these exact percentages; do not recompute them.")
                     self.trace("profiler", "verdict", verdict)
                 self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres), "verdict": verdict}
                 self.trace("profiler", "window", f"days cover different hours -> fair comparison uses only "
@@ -231,7 +246,7 @@ class Investigation:
     def window_note(self) -> str:
         w = self.case.get("window")
         if not w:
-            return ""
+            return ("\n" + self.case["compare"] + "\n") if self.case.get("compare") else ""
         return (f"\nLIKE-FOR-LIKE WINDOW (computed by the profiler, {w['qid']}): the days in the question cover different "
                 f"hours, so compare them only within pickup_hour BETWEEN {w['lo']} AND {w['hi']}. Do NOT divide totals by "
                 f"hours covered (the missing hours are quiet night/morning hours, so that inflates the partial day).\n{w['table']}\n"
