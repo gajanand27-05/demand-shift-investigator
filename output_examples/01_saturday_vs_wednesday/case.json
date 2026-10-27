@@ -76,7 +76,7 @@
     {
      "qid": "Q4",
      "sql": "SELECT w.day,\n       w.precip_mm,\n       w.wmo_code,\n       COUNT(t.trip_id) AS trips_in_window\nFROM investigator.nyc_daily_weather w\nLEFT JOIN investigator.trips t\n  ON t.pickup_date = w.day\n AND t.is_valid_trip\n AND t.pickup_hour BETWEEN 12 AND 23\nWHERE w.day IN ('2024-07-27','2024-07-31')\nGROUP BY w.day, w.precip_mm, w.wmo_code\nORDER BY w.day",
-     "finding": "Saturday 2024-07-27 had no precipitation (0.0 mm) and clear weather (wmo_code 3), while Wednesday 2024-07-31 had 9.9 mm of rain and overcast conditions (wmo_code 63). Despite the less favorable weather on Wednesday (rain), it had 18.3% more total trips than Saturday, indicating weather was not the suppressing factor for Saturday demand.",
+     "finding": "Saturday 2024-07-27 had no precipitation (0.0 mm) and clear weather (wmo_code 3) with 59736 trips, while Wednesday 2024-07-31 had 9.9 mm of rain and overcast conditions (wmo_code 63) with 70674 trips. Despite Saturday having fair weather and Wednesday having rain, Saturday had 15.6% fewer trips than Wednesday, refuting the hypothesis that weather suppressed Saturday demand.",
      "key_numbers": {
       "valid_trips_2024-07-27": 59736,
       "valid_trips_2024-07-31": 70674,
@@ -151,8 +151,8 @@
    "critique": {
     "id": "H4",
     "verdict": "revise",
-    "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized). No result rows exist, so the analyst's finding of a '26.5% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
-    "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 11-23 window."
+    "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
+    "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 12-23 window."
    },
    "audit": {
     "ok": false,
@@ -362,13 +362,13 @@
     {
      "id": "H4",
      "verdict": "revise",
-     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized). No result rows exist, so the analyst's finding of a '26.5% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported.",
-     "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 11-23 window."
+     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported.",
+     "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 12-23 window."
     }
    ],
    "missing_hypothesis": null,
    "data_caveats": [
-    "The SQL parse error means the trips_per_hour computation could not be performed from this query. A corrected query is needed to confirm whether the 26.5% gap persists when normalized by the 13 shared hours."
+    "The SQL parse error means the trips_per_hour computation could not be performed from this query. A corrected query is needed to confirm whether the 18.3% gap persists when normalized by the 12 shared hours."
    ],
    "decision": "another_round"
   },
@@ -377,19 +377,19 @@
     {
      "id": "H4",
      "verdict": "revise",
-     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized). No result rows exist, so the analyst's finding of a '26.5% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
-     "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 11-23 window."
+     "reason": "The SQL query failed to execute due to a Hive parse error (alias 't' not recognized in the investigator schema). No result rows exist, so the analyst's finding of a '18.3% gap' and 'trips_per_hour' numbers cannot be verified from this query. The finding is therefore unsupported. (no rounds left to fix the test)",
+     "revision_request": "Rewrite the SQL to fix the alias/parsing error, ensuring it runs against the investigator schema. Use correct table/column names (pickup_date, pickup_dow, pickup_hour, is_valid_trip). Then recompute trips_per_hour for both days within the 12-23 window."
     }
    ],
    "missing_hypothesis": null,
    "data_caveats": [
-    "The SQL parse error means the trips_per_hour computation could not be performed from this query. A corrected query is needed to confirm whether the 26.5% gap persists when normalized by the 13 shared hours."
+    "The SQL parse error means the trips_per_hour computation could not be performed from this query. A corrected query is needed to confirm whether the 18.3% gap persists when normalized by the 12 shared hours."
    ],
    "decision": "another_round"
   }
  ],
  "report": {
-  "answer": "Within the 12\u201323 hour window, Wednesday 2024-07-31 had 70,674 trips versus Saturday 2024-07-27's 59,736, an 18.3% raw gap. H1 confirms that even in this shared window, Wednesday consistently outperforms Saturday, indicating intrinsic weekday demand patterns (commuter/ business travel) outweigh weekend leisure patterns. H3 further shows that airport trips were proportionally similar (~10%) but absolutely lower on Saturday (6,082 vs 6,900), contributing to the total shortfall.",
+  "answer": "Within the 12\u201323 hour window, Wednesday 2024-07-31 had 70,674 trips versus Saturday 2024-07-27's 59,736, an 18.3% raw gap. H1 confirms that even in this shared window, Wednesday consistently outperforms Saturday, indicating intrinsic weekday demand patterns (commuter/business travel) outweigh weekend leisure patterns. H3 further shows that airport trips were proportionally similar (~10%) but absolutely lower on Saturday (6,082 vs 6,900), contributing to the total shortfall.",
   "causes": [
    {
     "cause": "Intrinsic weekday demand pattern: Wednesday attracts more commuter and business travel than Saturday, even within the 12\u201323 window.",
@@ -417,6 +417,10 @@
    "Data caveat: The 12\u201323 window excludes early morning and late night hours; partial-day coverage differences are acknowledged but excluded from the like-for-like comparison."
   ]
  },
+ "coverage_caveats": [
+  "2024-07-27 (Saturday) is a partial day: trips only from 11:57 to 23:59 (13 of 24 hours), so its whole-day total undercounts demand; compare it only within the same hours.",
+  "2024-08-01 (Thursday) is a partial day: trips only from 00:00 to 18:35 (19 of 24 hours), so its whole-day total undercounts demand; compare it only within the same hours."
+ ],
  "window": {
   "qid": "Q2",
   "lo": 12,
@@ -424,19 +428,19 @@
   "table": "pickup_date | pickup_dow | trips_in_window | hours_in_window\n2024-07-27 | Saturday | 59736 | 12\n2024-07-31 | Wednesday | 70674 | 12"
  },
  "memory_written": [
-  "mem-96027b13b748",
-  "mem-93990e2a90c2",
-  "mem-2c21a67542d5",
-  "mem-3eda970cb6f2",
-  "mem-b6d52f45bfd2",
-  "mem-68ccdb1e3288",
-  "mem-c71c6485fa0c",
-  "mem-4e5e7451d882"
+  "mem-1d89a76add64",
+  "mem-734489d22188",
+  "mem-348381ff0d9a",
+  "mem-54f3ed115267",
+  "mem-62c8d846eeb9",
+  "mem-c8867d1cb511",
+  "mem-852f4574ac60",
+  "mem-768afe782c95"
  ],
  "stats": {
   "llm_calls": 17,
   "sql_queries": 11,
   "rounds": 3,
-  "seconds": 144.8
+  "seconds": 141.5
  }
 }

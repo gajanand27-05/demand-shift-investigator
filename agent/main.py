@@ -164,37 +164,51 @@ class Investigation:
 
     # -- steps -------------------------------------------------------------------------------------
     def profile(self):
-        """Deterministic tool step: coverage per day, so nobody mistakes a data gap for a demand drop."""
-        qid, res = self.sql("profiler", "SELECT pickup_date, pickup_dow, COUNT(*) AS trips, MIN(pickup_ts) AS first_pickup, "
-                            "MAX(pickup_ts) AS last_pickup, COUNT(DISTINCT pickup_hour) AS hours_covered "
-                            "FROM investigator.trips GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
-                            "data coverage per day")
-        self.case["profile"] = {"qid": qid, "table": z.preview(res)}
-        partial = [r for r in res["rows"] if int(r[5]) < 24]
-        self.trace("profiler", "coverage", f"{len(res['rows'])} days; days with <24 hours of data: {[r[0] for r in partial] or 'none'}")
+        """Deterministic tool step: hour-level coverage per day, so nobody mistakes a data gap for a demand change.
+        An hour counts as covered only if it has at least half the median volume of that hour across all days
+        (a few straggler trips after an export cut-off do not count)."""
+        qid, res = self.sql("profiler", "SELECT pickup_date, pickup_dow, pickup_hour, COUNT(*) AS trips "
+                            "FROM investigator.trips GROUP BY pickup_date, pickup_dow, pickup_hour "
+                            "ORDER BY pickup_date, pickup_hour", "hour-level data coverage")
+        by_hour, days_info = {}, {}
+        for d, dow, hr, n in res["rows"]:
+            by_hour.setdefault(int(hr), []).append(int(n))
+            days_info.setdefault(d, {"dow": dow, "hours": {}})["hours"][int(hr)] = int(n)
+        median = {h: sorted(v)[len(v) // 2] for h, v in by_hour.items()}
+        rows = []
+        for d, info in sorted(days_info.items()):
+            strong = sorted(h for h, n in info["hours"].items() if n >= 0.5 * median[h])
+            # only cut-offs at the start/end of a day are gaps; a quiet hour in between (e.g. Sunday 5am) is real demand
+            full = list(range(strong[0], strong[-1] + 1)) if strong else []
+            info["full"] = full
+            rows.append([d, info["dow"], sum(info["hours"].values()), f"{full[0]:02d}:00" if full else "-",
+                         f"{full[-1]:02d}:59" if full else "-", len(full)])
+        table = z.preview({"columns": ["pickup_date", "pickup_dow", "trips", "first_full_hour", "last_full_hour",
+                                       "hours_covered"], "rows": rows})
+        self.case["profile"] = {"qid": qid, "table": table}
+        partial = [r for r in rows if r[5] < 24]
+        self.trace("profiler", "coverage", f"{len(rows)} days; partial days (hours with <50% of normal volume excluded): "
+                   + ("; ".join(f"{r[0]} {r[3]}-{r[4]} ({r[5]} h)" for r in partial) or "none"))
         # Memory mining from a tool event (H-MEM spec 4.1): coverage facts are written to long-term memory after the run.
         self.case["coverage_caveats"] = [
-            f"{r[0]} ({r[1]}) is a partial day: trips only from {str(r[3])[11:16]} to {str(r[4])[11:16]} "
-            f"({r[5]} of 24 hours), so its whole-day total undercounts demand; compare it only within the same hours."
+            f"{r[0]} ({r[1]}) is a partial day: data only covers {r[3]}-{r[4]} ({r[5]} of 24 hours); outside that the "
+            f"export is cut off, so its whole-day total undercounts demand. Compare it only within the same hours."
             for r in partial]
         # Like-for-like window: when the days in the question cover different hours, compare only the shared hours.
         days = sorted(set(re.findall(r"\d{4}-\d{2}-\d{2}", self.q)))
-        cov = {r[0]: r for r in res["rows"]}
-        if len(days) >= 2 and all(d in cov for d in days) and len({cov[d][5] for d in days}) > 1:
-            # a day whose data starts after hh:05 only partly covers that hour, so start at the next full hour
-            lo = max(int(str(cov[d][3])[11:13]) + (1 if int(str(cov[d][3])[14:16]) > 5 else 0) for d in days)
-            hi = min(int(str(cov[d][4])[11:13]) for d in days)
-            if hi > lo:   # last hour may be partial on a day that ends early, so stop before it
-                hi = hi - 1 if any(int(cov[d][5]) < 24 and str(cov[d][4])[11:13] != "23" for d in days) else hi
-            day_list = ", ".join(f"'{d}'" for d in days)
-            wq, wres = self.sql("profiler", f"SELECT pickup_date, pickup_dow, COUNT(*) AS trips_in_window, "
-                                f"COUNT(DISTINCT pickup_hour) AS hours_in_window FROM investigator.trips "
-                                f"WHERE is_valid_trip AND pickup_date IN ({day_list}) AND pickup_hour BETWEEN {lo} AND {hi} "
-                                f"GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
-                                f"like-for-like window {lo:02d}:00-{hi:02d}:59")
-            self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres)}
-            self.trace("profiler", "window", f"days cover different hours -> fair comparison uses only "
-                       f"{lo:02d}:00-{hi:02d}:59: " + "; ".join(f"{r[0]} {r[2]} valid trips" for r in wres["rows"]))
+        if len(days) >= 2 and all(d in days_info for d in days) and len({len(days_info[d]["full"]) for d in days}) > 1:
+            shared = set.intersection(*(set(days_info[d]["full"]) for d in days))
+            if shared:
+                lo, hi = min(shared), max(shared)
+                day_list = ", ".join(f"'{d}'" for d in days)
+                wq, wres = self.sql("profiler", f"SELECT pickup_date, pickup_dow, COUNT(*) AS trips_in_window, "
+                                    f"COUNT(DISTINCT pickup_hour) AS hours_in_window FROM investigator.trips "
+                                    f"WHERE is_valid_trip AND pickup_date IN ({day_list}) AND pickup_hour BETWEEN {lo} AND {hi} "
+                                    f"GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
+                                    f"like-for-like window {lo:02d}:00-{hi:02d}:59")
+                self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres)}
+                self.trace("profiler", "window", f"days cover different hours -> fair comparison uses only "
+                           f"{lo:02d}:00-{hi:02d}:59: " + "; ".join(f"{r[0]} {r[2]} valid trips" for r in wres["rows"]))
 
     def window_note(self) -> str:
         w = self.case.get("window")

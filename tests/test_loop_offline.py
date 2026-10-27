@@ -10,9 +10,9 @@ from agent import tools_zetaris as z
 from engines.hmem.hmem import HMEM
 
 ROWS = {"columns": ["pickup_date", "trips"], "rows": [["2024-07-27", "66660"], ["2024-07-31", "109582"]]}
-PROFILE = {"columns": ["pickup_date", "pickup_dow", "trips", "first_pickup", "last_pickup", "hours_covered"],
-           "rows": [["2024-07-27", "Saturday", "66660", "2024-07-27 11:57:01", "2024-07-27 23:59:58", "13"],
-                    ["2024-07-31", "Wednesday", "109582", "2024-07-31 00:00:00", "2024-07-31 23:59:59", "24"]]}
+PROFILE = {"columns": ["pickup_date", "pickup_dow", "pickup_hour", "trips"],
+           "rows": [["2024-07-27", "Saturday", str(h), "5000"] for h in range(12, 24)]
+                   + [["2024-07-31", "Wednesday", str(h), "4500"] for h in range(24)]}
 
 
 class FakeModel:
@@ -60,7 +60,7 @@ class FakeModel:
 def fake_post(sql, limit):
     if "SELEC " in sql:
         raise RuntimeError("Zetaris 400: syntax error")
-    return PROFILE if "hours_covered" in sql else ROWS
+    return PROFILE if "GROUP BY pickup_date, pickup_dow, pickup_hour" in sql else ROWS
 
 
 @pytest.fixture
@@ -90,7 +90,7 @@ def test_loop_revises_retries_and_remembers(offline):
     # Next investigation recalls the caveat the critic found (H-MEM across sessions).
     nxt = main.Investigation("Why did demand drop on Saturday 2024-07-27?", main.Trace(quiet=True), HMEM(path=tmp / "mem.json"))
     nxt.recall()
-    assert "11:57" in nxt.case["memory"]["context"]
+    assert "12:00-23:59" in nxt.case["memory"]["context"]   # the profiler's coverage caveat, recalled
 
 
 def test_guard_rejects_unsafe_sql():
