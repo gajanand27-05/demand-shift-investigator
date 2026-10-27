@@ -172,6 +172,31 @@ class Investigation:
         self.case["profile"] = {"qid": qid, "table": z.preview(res)}
         partial = [r[0] for r in res["rows"] if int(r[5]) < 24]
         self.trace("profiler", "coverage", f"{len(res['rows'])} days; days with <24 hours of data: {partial or 'none'}")
+        # Like-for-like window: when the days in the question cover different hours, compare only the shared hours.
+        days = sorted(set(re.findall(r"\d{4}-\d{2}-\d{2}", self.q)))
+        cov = {r[0]: r for r in res["rows"]}
+        if len(days) >= 2 and all(d in cov for d in days) and len({cov[d][5] for d in days}) > 1:
+            lo = max(int(str(cov[d][3])[11:13]) for d in days)
+            hi = min(int(str(cov[d][4])[11:13]) for d in days)
+            if hi > lo:   # last hour may be partial on a day that ends early, so stop before it
+                hi = hi - 1 if any(int(cov[d][5]) < 24 and str(cov[d][4])[11:13] != "23" for d in days) else hi
+            day_list = ", ".join(f"'{d}'" for d in days)
+            wq, wres = self.sql("profiler", f"SELECT pickup_date, pickup_dow, COUNT(*) AS trips_in_window, "
+                                f"COUNT(DISTINCT pickup_hour) AS hours_in_window FROM investigator.trips "
+                                f"WHERE pickup_date IN ({day_list}) AND pickup_hour BETWEEN {lo} AND {hi} "
+                                f"GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
+                                f"like-for-like window {lo:02d}:00-{hi:02d}:59")
+            self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres)}
+            self.trace("profiler", "window", f"days cover different hours -> fair comparison uses only "
+                       f"{lo:02d}:00-{hi:02d}:59: " + "; ".join(f"{r[0]} {r[2]} trips" for r in wres["rows"]))
+
+    def window_note(self) -> str:
+        w = self.case.get("window")
+        if not w:
+            return ""
+        return (f"\nLIKE-FOR-LIKE WINDOW (computed by the profiler, {w['qid']}): the days in the question cover different "
+                f"hours, so compare them only within pickup_hour BETWEEN {w['lo']} AND {w['hi']}. Do NOT divide totals by "
+                f"hours covered (the missing hours are quiet night/morning hours, so that inflates the partial day).\n{w['table']}\n")
 
     def recall(self):
         """Two H-MEM retrievals merged: one for the question, one aimed at known data caveats for its dates."""
@@ -195,7 +220,7 @@ class Investigation:
 
     def plan(self):
         user = (f"Question: {self.q}\n\n{z.CATALOG}\n\nData coverage profile ({self.case['profile']['qid']}):\n"
-                f"{self.case['profile']['table']}\n\n{self.case['memory']['context'] or 'Recalled memory: none'}")
+                f"{self.case['profile']['table']}\n{self.window_note()}\n{self.case['memory']['context'] or 'Recalled memory: none'}")
         p = self.ask("planner", PLANNER_SYS, user)
         self.case["plan"] = p
         self.trace("planner", "plan", f"metric={p.get('metric')} | focus={p.get('focus')} | baseline={p.get('baseline')}")
@@ -216,7 +241,7 @@ class Investigation:
         """Executor: write SQL, run it in Zetaris, repair on errors, then summarise the evidence."""
         base = (f"{z.CATALOG}\n\nInvestigation: {self.case['plan'].get('question_restated', self.q)}\n"
                 f"Focus: {self.case['plan'].get('focus')} | Baseline: {self.case['plan'].get('baseline')}\n"
-                f"Hypothesis {h['id']}: {h['claim']}\nSuggested test: {h['test']}\n")
+                f"Hypothesis {h['id']}: {h['claim']}\nSuggested test: {h['test']}\n{self.window_note()}")
         if revision:
             base += f"\nThe Evidence Critic rejected the previous test. Fix it as requested: {revision}\n"
             if h["attempts"]:
@@ -259,6 +284,10 @@ class Investigation:
             if last.get("qid"):
                 q = self.case["queries"][last["qid"]]
                 au = audit(last.get("finding") or "", q["columns"], q["rows"])
+                if self.case.get("window") and re.search(r"per[- ]hour|/hour|hourly", last.get("finding") or "", re.I) \
+                        and not re.search(r"pickup_hour\s*(between|>=|>|<=|<|in)", q["sql"], re.I):
+                    au["scope_flags"] = au["scope_flags"] + ["per-hour rate over different hour windows (not like-for-like)"]
+                    au["ok"] = False
             else:
                 au = {"ok": False, "unverified_numbers": [], "scope_flags": ["no result"]}
             h["audit"] = au
@@ -273,7 +302,7 @@ class Investigation:
         if not items:
             return {"decision": "approve", "reviews": []}
         user = (f"Question: {self.q}\nFocus: {self.case['plan'].get('focus')} | Baseline: {self.case['plan'].get('baseline')}\n\n"
-                f"Data coverage profile:\n{self.case['profile']['table']}\n\n"
+                f"Data coverage profile:\n{self.case['profile']['table']}\n{self.window_note()}\n"
                 f"{self.case['memory']['context'] or ''}\n\nReview round {rnd} of {MAX_ROUNDS}. Findings:\n\n" + "\n\n".join(items))
         c = self.ask("critic", CRITIC_SYS, user)
         self.case["rounds"].append(c)
@@ -315,7 +344,7 @@ class Investigation:
         user = (f"Question: {self.q}\nFocus: {self.case['plan'].get('focus')} | Baseline: {self.case['plan'].get('baseline')}\n\n"
                 "ACCEPTED findings:\n" + ("\n".join(fmt(h) for h in accepted) or "(none)") +
                 "\n\nNOT accepted:\n" + ("\n".join(fmt(h) for h in rejected) or "(none)") +
-                "\n\nCritic data caveats:\n" + ("\n".join(f"- {c}" for c in caveats) or "(none)"))
+                "\n\nCritic data caveats:\n" + ("\n".join(f"- {c}" for c in caveats) or "(none)") + self.window_note())
         rep = self.ask("reporter", REPORTER_SYS, user)
         flags = SCOPE_WORDS.findall(rep.get("answer", "") + " " + rep.get("recommendation", ""))
         if flags:   # same guardrail as the evidence audit, applied to the final answer (one rewrite)
