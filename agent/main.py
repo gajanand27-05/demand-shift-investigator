@@ -86,12 +86,14 @@ and 3-4 competing, testable hypotheses that could explain the change (e.g. calen
 geography/zone mix, airport traffic, time-of-day, data coverage/quality). Each hypothesis must be checkable
 with ONE aggregate SQL query on the tables provided. Use recalled memory: do not re-test explanations memory
 says were already refuted unless the question differs, and respect known data caveats.
+FAIR COMPARISON RULE: demand varies strongly by hour (nights are quiet, afternoons/evenings busy). When days cover different hours, dividing totals by hours covered is NOT like-for-like. Compare the SAME hour window on both days (e.g. WHERE pickup_hour BETWEEN 12 AND 23 if one day only has data from noon), or compare hour by hour.
 Reply with ONLY a JSON object:
 {"question_restated": str, "metric": str, "focus": str, "baseline": str,
  "hypotheses": [{"id": "H1", "claim": str, "test": str}], "memory_used": [memory ids you relied on]}"""
 
 ANALYST_SQL_SYS = """You are the Data Analyst. Write ONE Spark SQL query (Zetaris Lightning) that tests the hypothesis.
 Aggregate with GROUP BY; compare the focus period against the baseline in the same query when possible.
+FAIR COMPARISON RULE: demand varies strongly by hour (nights are quiet, afternoons/evenings busy). When days cover different hours, dividing totals by hours covered is NOT like-for-like. Compare the SAME hour window on both days (e.g. WHERE pickup_hour BETWEEN 12 AND 23 if one day only has data from noon), or compare hour by hour.
 Never select raw trip rows. Use only the tables in the catalog.
 Reply with ONLY a JSON object: {"sql": str, "why": str}"""
 
@@ -106,8 +108,10 @@ Be sceptical: accepting a flawed finding is worse than sending it back. For each
    invented or self-contradictory number (e.g. "higher (6100 vs 10068)") means "revise".
 2. Scope: the data covers only the days in the coverage profile. Claims about a month, a season or "all Saturdays"
    from one or two days are over-generalised -> "revise" (ask to restate the claim for the days actually observed).
-3. Test validity: does the SQL actually test the claim, with the right filters and a fair, like-for-like comparison
-   (same hours covered, same hour window)? A partial day compared with a full day without normalising -> "revise".
+3. Test validity: does the SQL actually test the claim, with the right filters and a fair, like-for-like comparison?
+   FAIR COMPARISON RULE: demand varies strongly by hour (nights are quiet, afternoons/evenings busy). When days cover different hours, dividing totals by hours covered is NOT like-for-like. Compare the SAME hour window on both days (e.g. WHERE pickup_hour BETWEEN 12 AND 23 if one day only has data from noon), or compare hour by hour.
+   A partial day compared with a full day over different hours (raw totals OR trips-per-hour-covered) -> "revise",
+   asking for the same hour window.
 4. Is a data coverage gap (partial days, missing hours) masquerading as a demand change? Is the effect size meaningful?
 Verdicts: "accept" (evidence supports or cleanly refutes the claim), "revise" (the test is flawed; say exactly how
 to fix it), "reject" (claim unsupported / evidence contradicts it). You may propose ONE missing hypothesis
@@ -119,6 +123,9 @@ Reply with ONLY a JSON object:
 
 REPORTER_SYS = """You are the Report Writer. Write the final answer for a taxi fleet operations analyst.
 Use ONLY findings the critic accepted; cite them by their query ids (e.g. Q3). Rank causes by impact.
+Quantify how much of the raw gap is a data-coverage artefact and how much remains in a like-for-like (same hour window)
+comparison, if the findings allow. Describe only the days actually observed: no claims about months, seasons or
+"all Saturdays" from one or two days.
 State rejected explanations briefly, data caveats, limitations and an actionable staffing/dispatch recommendation.
 Reply with ONLY a JSON object:
 {"answer": str (2-4 sentences), "causes": [{"cause": str, "impact": str, "evidence": [query ids], "confidence": number 0-1}],
@@ -310,6 +317,11 @@ class Investigation:
                 "\n\nNOT accepted:\n" + ("\n".join(fmt(h) for h in rejected) or "(none)") +
                 "\n\nCritic data caveats:\n" + ("\n".join(f"- {c}" for c in caveats) or "(none)"))
         rep = self.ask("reporter", REPORTER_SYS, user)
+        flags = SCOPE_WORDS.findall(rep.get("answer", "") + " " + rep.get("recommendation", ""))
+        if flags:   # same guardrail as the evidence audit, applied to the final answer (one rewrite)
+            self.trace("critic", "audit", f"report over-generalises ({sorted(set(f.lower() for f in flags))}); asking for a rewrite")
+            rep = self.ask("reporter", REPORTER_SYS, user + f"\n\nYour previous draft over-generalised with {sorted(set(flags))}. "
+                           f"Rewrite it describing only the observed days.\nPrevious draft: {json.dumps(rep)[:1500]}")
         self.case["report"] = rep
         self.trace("reporter", "answer", rep.get("answer", ""))
 
