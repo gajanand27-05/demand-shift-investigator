@@ -176,19 +176,20 @@ class Investigation:
         days = sorted(set(re.findall(r"\d{4}-\d{2}-\d{2}", self.q)))
         cov = {r[0]: r for r in res["rows"]}
         if len(days) >= 2 and all(d in cov for d in days) and len({cov[d][5] for d in days}) > 1:
-            lo = max(int(str(cov[d][3])[11:13]) for d in days)
+            # a day whose data starts after hh:05 only partly covers that hour, so start at the next full hour
+            lo = max(int(str(cov[d][3])[11:13]) + (1 if int(str(cov[d][3])[14:16]) > 5 else 0) for d in days)
             hi = min(int(str(cov[d][4])[11:13]) for d in days)
             if hi > lo:   # last hour may be partial on a day that ends early, so stop before it
                 hi = hi - 1 if any(int(cov[d][5]) < 24 and str(cov[d][4])[11:13] != "23" for d in days) else hi
             day_list = ", ".join(f"'{d}'" for d in days)
             wq, wres = self.sql("profiler", f"SELECT pickup_date, pickup_dow, COUNT(*) AS trips_in_window, "
                                 f"COUNT(DISTINCT pickup_hour) AS hours_in_window FROM investigator.trips "
-                                f"WHERE pickup_date IN ({day_list}) AND pickup_hour BETWEEN {lo} AND {hi} "
+                                f"WHERE is_valid_trip AND pickup_date IN ({day_list}) AND pickup_hour BETWEEN {lo} AND {hi} "
                                 f"GROUP BY pickup_date, pickup_dow ORDER BY pickup_date",
                                 f"like-for-like window {lo:02d}:00-{hi:02d}:59")
             self.case["window"] = {"qid": wq, "lo": lo, "hi": hi, "table": z.preview(wres)}
             self.trace("profiler", "window", f"days cover different hours -> fair comparison uses only "
-                       f"{lo:02d}:00-{hi:02d}:59: " + "; ".join(f"{r[0]} {r[2]} trips" for r in wres["rows"]))
+                       f"{lo:02d}:00-{hi:02d}:59: " + "; ".join(f"{r[0]} {r[2]} valid trips" for r in wres["rows"]))
 
     def window_note(self) -> str:
         w = self.case.get("window")
