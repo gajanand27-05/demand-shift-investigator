@@ -230,8 +230,12 @@ class Investigation:
             h["attempts"].append({"sql": sql, "error": error})
             self.trace("analyst", "give-up", f"{h['id']}: no working query after {MAX_SQL_RETRIES + 1} attempts; escalating to critic")
             return
+        fix = (f"\n\nThe Evidence Critic rejected your previous summary. Address this exactly: {revision}\n"
+               f"Previous summary (do not repeat its mistakes): {h['attempts'][-1].get('finding')}") \
+            if revision and h["attempts"] else ""
         summ = self.ask("analyst", ANALYST_SUM_SYS,
-                        f"Hypothesis {h['id']}: {h['claim']}\nSQL ({qid}):\n{res['sql']}\n\nResult:\n{z.preview(res)}")
+                        f"Hypothesis {h['id']}: {h['claim']}\nSQL ({qid}):\n{res['sql']}\n\nResult:\n{z.preview(res)}{fix}\n\n"
+                        "Quote only numbers that appear in the result above.")
         h["attempts"].append({"qid": qid, "sql": res["sql"], "finding": summ.get("finding"),
                               "key_numbers": summ.get("key_numbers"), "direction": summ.get("direction")})
         h["status"] = "analysed"

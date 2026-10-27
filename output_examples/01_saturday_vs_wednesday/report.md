@@ -1,6 +1,6 @@
 # Why was taxi demand on Saturday 2024-07-27 so much lower than on Wednesday 2024-07-31?
 
-**Answer.** The primary driver of the demand gap is data coverage: Saturday 2024-07-27 has only 13 hours of trip data (11:57–23:59) versus 24 hours for Wednesday 2024-07-31, making the raw trip count difference consistent with the 13/24 hour coverage ratio (H1). After normalizing for hours covered, Saturday's trips-per-hour rate (4612.1) is actually higher than Wednesday's (4110.6), and airport trips per hour are also higher (469.2 vs 419.5), indicating the lower total trips are an artifact of missing early-morning data rather than weaker demand (H1, H4). Day-of-week patterns do not suppress Saturday demand; Saturday 2024-07-27 has the highest average hourly trips among all July 2024 days (4612.1), exceeding Wednesday (4110.6) and all weekdays, so intrinsic lower demand is not a factor (H2). Weather also does not explain the gap, as Saturday had clear skies with 0.0 mm precipitation while Wednesday had rain (9.9 mm) and overcast conditions, yet Wednesday still recorded 65% more total trips (H3).
+**Answer.** The primary driver of the demand gap is data coverage: Saturday 2024-07-27 has only 13 hours of trip data (11:57–23:59) versus 24 hours for Wednesday 2024-07-31, making the raw trip count difference consistent with the 13/24 hour coverage ratio. After normalizing for hours covered, Saturday's trips-per-hour rate (4612.1) is actually higher than Wednesday's (4110.6), and airport trips per hour are also higher (469.2 vs 419.5), indicating the lower total trips are an artifact of missing early-morning data rather than weaker demand. Day-of-week patterns and weather do not suppress Saturday demand; Saturday has the highest average hourly trips among July 2024 days, and despite clear skies on Saturday versus rain on Wednesday, the rainier day still recorded 65% more total trips.
 
 **Confidence:** 0.9
 
@@ -29,10 +29,11 @@ Staff and dispatch for Saturday operations using the higher per-hour rate (≈46
 ## Hypotheses and critic rulings
 | id | origin | claim | status | evidence | critic |
 |---|---|---|---|---|---|
-| H1 | planner | The apparent demand drop is primarily a data coverage artifact: Saturday 2024-07-27 only has 13 hours of trip data (11:57–23:59) vs 24 hours for Wednesday 2024-07-31, missing the early-morning hours entirely. | accepted | Q2 | The query Q2 correctly computes total trips and hours covered for the two target days. The result rows confirm Saturday 2024-07-27 has 59957 trips over 13 hours (4612.1 trips/hour) vs Wednesday 2024-07-31 with 98655 trips over 24 hours (4110.6 trips/hour). The analyst's conclusion that the total-trip gap is consistent with the 13/24 hour coverage ratio is valid and well-supported by the data. Numbers are accurate and directly from the result rows. |
-| H2 | planner | Even after hourly normalization, Saturdays in July 2024 have intrinsically lower demand than Wednesdays due to day-of-week patterns (e.g., fewer commuters, different leisure timing). | accepted | Q3 | Query Q3 correctly aggregates hourly trip counts across July 2024, normalizing by day-of-week. The result rows show Saturday has the highest avg_trips_per_hour (4612.1) versus Wednesday (4110.6). The analyst correctly concludes there is no intrinsic lower Saturday demand; if anything, Saturday demand is higher. Numbers are accurate and directly from the result rows. |
-| H3 | planner | Weather on 2024-07-27 (e.g., heavy rain or extreme heat) suppressed taxi demand relative to 2024-07-31. | accepted | Q4 | Query Q4 correctly joins weather and trip data for the two target days. The result rows show Saturday had 0.0 mm precip and clear skies (wmo_code 3), while Wednesday had 9.9 mm rain and overcast (wmo_code 63). The analyst correctly notes that despite worse weather on Wednesday, it had more trips, refuting the weather-suppression claim. Numbers are accurate and directly from the result rows. |
-| H4 | planner | Airport-related trips (which are high-volume) were unusually low on 2024-07-27 vs 2024-07-31, driving the overall gap. | accepted | Q5 | Query Q5 correctly computes airport trips and trips-per-hour normalized by hours_covered. The result rows confirm Saturday has fewer total and airport trips, but higher rates per hour (469.2 vs 419.5). The analyst correctly concludes the lower airport count is a consequence of reduced data coverage, not disproportionately low demand. Numbers are accurate and directly from the result rows. |
+| H1 | planner | The apparent demand drop is primarily a data coverage artifact: Saturday 2024-07-27 only has 13 hours of trip data (11:57–23:59) vs 24 hours for Wednesday 2024-07-31, missing the early-morning hours entirely. | rejected | Q9 | The finding states 'airport trips per hour are also higher on Saturday (469.2 vs 419.5)'. These numbers do not appear in the result rows of Query Q9, which only contain total_valid_trips, hours_covered, trips_per_hour, and airport_trips. The airport trips per hour values are derived (airport_trips/hours_covered) and are not present in the result rows. Presenting them as result-row values is a factual error. (no rounds left to fix the test) |
+| H2 | planner | Even after hourly normalization, Saturdays in July 2024 have intrinsically lower demand than Wednesdays due to day-of-week patterns (e.g., fewer commuters, different leisure timing). | accepted | Q3 | The finding correctly states that Saturday has the highest avg_trips_per_hour (4612.1) versus Wednesday (4110.6). The result rows support this. The conclusion that there is no intrinsic lower Saturday demand is valid. Numbers are accurate and directly from the result rows. |
+| H3 | planner | Weather on 2024-07-27 (e.g., heavy rain or extreme heat) suppressed taxi demand relative to 2024-07-31. | accepted | Q4 | The finding correctly compares weather and trip counts for the two days. The result rows show Saturday had 0.0 mm precip and clear skies, while Wednesday had 9.9 mm rain and overcast. Despite worse weather on Wednesday, it had more trips, refuting the weather-suppression claim. Numbers are accurate and directly from the result rows. |
+| H4 | planner | Airport-related trips (which are high-volume) were unusually low on 2024-07-27 vs 2024-07-31, driving the overall gap. | rejected | Q10 | Same error as H1. The finding states 'airport trips per hour are also higher on Saturday (469.2 vs 419.5)'. Query Q10's result rows do include airport_trips_per_hour (469.2 and 419.5), but the finding's presentation of these numbers as the primary evidence for the coverage-normalized comparison is inconsistent with the Q9 audit failure. The finding must not claim these rates appear in Q9's results, and must clarify the source of the per-hour rates. (no rounds left to fix the test) |
+| H5 | critic | The lower airport trip count on Saturday is entirely due to the 13-hour coverage gap, not lower demand per hour. | accepted | Q8 | The finding explicitly states the airport_trips_per_hour values (469.2 vs 419.5) and these exact numbers appear in the result rows of Query Q8. The comparison is fair (same-hour normalization) and the conclusion that the gap is due to coverage, not lower per-hour demand, is correctly supported. |
 
 ## Evidence (every query ran in Zetaris)
 ### Q1 - profiler: data coverage per day
@@ -130,4 +131,104 @@ pickup_date | total_valid_trips | hours_covered | trips_per_hour | airport_trips
 2024-07-31 | 98655 | 24 | 4110.6 | 10068  
 2024-07-27 | 59957 | 13 | 4612.1 | 6100
 
-_Stats: {'llm_calls': 11, 'sql_queries': 5, 'rounds': 1, 'seconds': 103.2}_
+### Q6 - analyst: test H1
+```sql
+SELECT t.pickup_date,
+       COUNT(*) AS total_valid_trips,
+       COUNT(DISTINCT t.pickup_hour) AS hours_covered,
+       ROUND(COUNT(*)/NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS trips_per_hour,
+       SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END) AS airport_trips
+FROM investigator.trips t
+WHERE t.pickup_date IN ('2024-07-27','2024-07-31')
+  AND t.is_valid_trip
+GROUP BY t.pickup_date
+```
+pickup_date | total_valid_trips | hours_covered | trips_per_hour | airport_trips  
+2024-07-31 | 98655 | 24 | 4110.6 | 10068  
+2024-07-27 | 59957 | 13 | 4612.1 | 6100
+
+### Q7 - analyst: test H4
+```sql
+SELECT t.pickup_date,
+       COUNT(*) AS total_valid_trips,
+       COUNT(DISTINCT t.pickup_hour) AS hours_covered,
+       ROUND(COUNT(*)/NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS trips_per_hour,
+       SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END) AS airport_trips,
+       SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN t.total_usd ELSE 0 END) AS airport_fare_total
+FROM investigator.trips t
+WHERE t.pickup_date IN ('2024-07-27','2024-07-31')
+  AND t.is_valid_trip
+GROUP BY t.pickup_date
+```
+pickup_date | total_valid_trips | hours_covered | trips_per_hour | airport_trips | airport_fare_total  
+2024-07-31 | 98655 | 24 | 4110.6 | 10068 | 786737.2199999994  
+2024-07-27 | 59957 | 13 | 4612.1 | 6100 | 480871.5599999995
+
+### Q8 - analyst: test H5
+```sql
+SELECT t.pickup_date,
+       COUNT(*) AS total_valid_trips,
+       COUNT(DISTINCT t.pickup_hour) AS hours_covered,
+       ROUND(COUNT(*)/NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS trips_per_hour,
+       SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END) AS airport_trips,
+       ROUND(1.0 * SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS airport_trips_per_hour
+FROM investigator.trips t
+WHERE t.pickup_date IN ('2024-07-27','2024-07-31')
+  AND t.is_valid_trip
+GROUP BY t.pickup_date
+```
+pickup_date | total_valid_trips | hours_covered | trips_per_hour | airport_trips | airport_trips_per_hour  
+2024-07-31 | 98655 | 24 | 4110.6 | 10068 | 419.5  
+2024-07-27 | 59957 | 13 | 4612.1 | 6100 | 469.2
+
+### Q9 - analyst: test H1
+```sql
+SELECT t.pickup_date,
+       COUNT(*) AS total_valid_trips,
+       COUNT(DISTINCT t.pickup_hour) AS hours_covered,
+       ROUND(COUNT(*)/NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS trips_per_hour,
+       SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END) AS airport_trips
+FROM investigator.trips t
+WHERE t.pickup_date IN ('2024-07-27','2024-07-31')
+  AND t.is_valid_trip
+GROUP BY t.pickup_date
+```
+pickup_date | total_valid_trips | hours_covered | trips_per_hour | airport_trips  
+2024-07-31 | 98655 | 24 | 4110.6 | 10068  
+2024-07-27 | 59957 | 13 | 4612.1 | 6100
+
+### Q10 - analyst: test H4
+```sql
+SELECT t.pickup_date,
+       COUNT(*) AS total_valid_trips,
+       COUNT(DISTINCT t.pickup_hour) AS hours_covered,
+       ROUND(COUNT(*)/NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS trips_per_hour,
+       SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END) AS airport_trips,
+       ROUND(1.0 * SUM(CASE WHEN t.pickup_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                OR t.dropoff_zone IN ('JFK Airport','LaGuardia Airport','Newark Airport')
+                THEN 1 ELSE 0 END)
+         / NULLIF(COUNT(DISTINCT t.pickup_hour),0),1) AS airport_trips_per_hour
+FROM investigator.trips t
+WHERE t.pickup_date IN ('2024-07-27','2024-07-31')
+  AND t.is_valid_trip
+GROUP BY t.pickup_date
+```
+pickup_date | total_valid_trips | hours_covered | trips_per_hour | airport_trips | airport_trips_per_hour  
+2024-07-31 | 98655 | 24 | 4110.6 | 10068 | 419.5  
+2024-07-27 | 59957 | 13 | 4612.1 | 6100 | 469.2
+
+_Stats: {'llm_calls': 23, 'sql_queries': 10, 'rounds': 3, 'seconds': 219.7}_
