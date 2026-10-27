@@ -10,3 +10,4 @@ node_modules/
 *.log
 runs/
 data/memory/
+data/raw/
