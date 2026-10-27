@@ -427,8 +427,14 @@ class Investigation:
                            f"Rewrite it describing only the observed days.\nPrevious draft: {json.dumps(rep)[:1500]}")
         # Final evaluator pass: the critic checks the answer against its own numbers (direction words, contradictions).
         for attempt in range(2):   # the corrected answer is checked again, once
-            review = self.ask("critic", FINAL_REVIEW_SYS, f"Question: {self.q}\n\nDraft answer:\n{rep.get('answer', '')}\n\n"
-                              f"Recommendation:\n{rep.get('recommendation', '')}")
+            try:
+                review = self.ask("critic", FINAL_REVIEW_SYS, f"Question: {self.q}\n\nDraft answer:\n{rep.get('answer', '')}\n\n"
+                                  f"Recommendation:\n{rep.get('recommendation', '')}")
+            except RuntimeError as e:
+                if not llm.sample_mode():
+                    raise
+                self.trace("system", "replay", f"recording predates the final review step; skipped ({str(e)[:60]})")
+                break
             if review.get("consistent") is False and review.get("fixed_answer"):
                 self.trace("critic", "revise", f"final answer contradicted its own numbers: {review.get('problems')}; corrected")
                 rep.setdefault("answer_draft", rep.get("answer"))
